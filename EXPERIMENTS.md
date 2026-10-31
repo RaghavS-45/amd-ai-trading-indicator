@@ -129,4 +129,50 @@ row-selection rule for training and live signals.
 
 ---
 
+## Phase 2 – EDA and move_threshold (2026-10-31)
+
+**Status:** ✅ Complete
+
+**Rows used (`src/eda.py`):** every feature non-NaN, label exists, and
+`sessions.tradable_mask`. 167,742 of 188,640 grid rows (88.9%), 486 days, 10:03–15:49 ET.
+The script checks that its forward return matches `make_labels()` exactly.
+
+**10-minute forward log return:** mean −0.012 bps, std 35.96 bps.
+Percentiles: p1 −98.8, p5 −54.8, p25 −17.5, p50 0.0, p75 +17.6, p95 +54.2, p99 +97.7 bps.
+
+**Cost:** round trip 2 × ($0.005 fee + $0.005 slippage) = $0.02/share = 1.00 bps at the
+median close of $199.70 (0.30–2.61 bps over the period). Cost is small next to the
+36 bps spread, so the threshold choice is about class balance.
+
+**Class balance by threshold:**
+| Threshold | Up | Down | Neutral |
+|-----------|----|------|---------|
+| 5 bps | 42.0% | 41.9% | 16.0% |
+| 10 bps | 34.7% | 34.4% | 30.9% |
+| 15 bps | 28.0% | 27.8% | 44.2% |
+| 20 bps | 22.4% | 22.3% | 55.3% |
+| 30 bps | 14.3% | 14.3% | 71.4% |
+
+**Past vs forward 10-min return:** Pearson +0.0037, Spearman −0.0052. No simple
+momentum or mean reversion; consistent with expecting modest accuracy.
+
+**Train vs test (at 15 bps, before the change):**
+| Period | Rows | Share > 0 | Std (bps) | Up | Down |
+|--------|------|-----------|-----------|----|------|
+| Train 2024-11-01 → 2026-06-30 | 142,064 | 49.9% | 35.85 | 28.0% | 27.7% |
+| Test 2026-07-01 → 2026-10-15 | 25,678 | 49.2% | 36.60 | 28.0% | 28.3% |
+
+At 10 bps: train Up 34.7% / Down 34.2%, test Up 34.6% / Down 35.2%.
+
+**Filled bars by month:** under 1% for most of 2025, then 2–9% from 2025-12, highest
+in the test months (2026-08 8.53%, 2026-10 8.82%). The test and live periods have more
+flat, zero-volume minutes than most training data. Watch `vol_ratio` in validation.
+
+**Decision:** `move_threshold` 0.0015 → **0.0010 (10 bps)**: near-equal thirds give the
+model the most Up/Down examples, still ~10× the assumed cost.
+
+**Figures:** `report/figures/forward_return_hist.png`, `report/figures/monthly_fill.png`.
+
+---
+
 <!-- Add new experiment entries below as phases progress -->

@@ -28,8 +28,8 @@ min_day_coverage: 0.5
 
 # ── Labeling ───────────────────────────────────────────────────────
 horizon_bars: 10               # bars forward for the label
-move_threshold: 0.0015         # |return| > threshold → Up/Down; else Neutral
-                               # ~15 bps > round-trip cost assumption
+move_threshold: 0.0010         # |return| > threshold → Up/Down; else Neutral
+                               # 10 bps: ~equal Up/Down/Neutral (EDA 2026-10-31); ~10x round-trip cost
 
 # ── Feature lags ───────────────────────────────────────────────────
 return_lags: [1, 3, 5, 10, 30]

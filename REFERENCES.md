@@ -16,6 +16,7 @@ Versions match the project `.venv`.
 | PyYAML | 6.0.2 | Reading `config.yaml` |
 | python-dotenv | 1.0.1 | Loading API keys from `.env` |
 | pytz | 2026.6 | Time-zone conversion to America/New_York |
+| Matplotlib | 3.9.2 | EDA figures in `report/figures/` |
 | pytest | 8.4.2 | Automated tests (leakage, session selection) |
 
 Libraries are added here when they are first used in code.
