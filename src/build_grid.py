@@ -158,6 +158,13 @@ def coverage_report(df_raw: pd.DataFrame, df_grid: pd.DataFrame,
     print("─────────────────────────────────────────────────────────")
 
 
+def drop_sparse_days(df: pd.DataFrame, min_cov: float):
+    day = pd.Series(df.index.tz_convert(ET).date, index=df.index)
+    real_frac = (~df["is_filled"]).groupby(day).mean()
+    bad_days = real_frac[real_frac < min_cov]
+    keep = ~day.isin(bad_days.index)
+    return df[keep], bad_days
+
 # ── Entry point ────────────────────────────────────────────────────
 
 def main():
@@ -175,6 +182,10 @@ def main():
     cal = xcals.get_calendar("XNYS")
     df_grid = build_grid(df_raw)
     print(f"Grid rows built : {len(df_grid):,}")
+    df_grid, bad_days = drop_sparse_days(df_grid, CFG["min_day_coverage"])
+    print(f"Days dropped (real-bar share below {CFG['min_day_coverage']:.0%}): {len(bad_days)}")
+    print(bad_days.round(3).to_string())
+    print(f"Grid rows after dropping : {len(df_grid):,}")
 
     grid_path.parent.mkdir(parents=True, exist_ok=True)
     df_grid.to_parquet(grid_path)

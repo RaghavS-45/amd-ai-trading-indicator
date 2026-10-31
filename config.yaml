@@ -5,15 +5,15 @@ asset: AMD
 
 # ── Date ranges ────────────────────────────────────────────────────
 # ~2 years of data → more walk-forward folds, better generalisation
-train_start: "2023-01-03"   # first NYSE trading day of 2023
-train_end:   "2024-08-30"
+train_start: "2024-11-01"   # first NYSE trading day of 2023
+train_end:   "2026-06-30"
 
 # walk-forward validation window length (trading days)
 val_window_days: 30
 
 # final hold-out test  – touch only once in Phase 6
-test_start: "2024-09-02"
-test_end:   "2024-12-31"
+test_start: "2026-07-01"
+test_end:   "2026-10-15"
 
 # live dry-run dates  (fill in before Phase 8)
 live_start: ""
@@ -24,6 +24,7 @@ bar_timeframe: "1Min"          # "1Min" or "5Min"
 market_open:  "09:30"
 market_close: "16:00"
 drop_open_mins: 5              # drop first N minutes after open
+min_day_coverage: 0.5
 
 # ── Labeling ───────────────────────────────────────────────────────
 horizon_bars: 10               # bars forward for the label
