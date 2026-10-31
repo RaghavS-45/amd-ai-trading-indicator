@@ -1,6 +1,6 @@
 """
 verify_checksum.py
-Verifies the SHA-256 checksum of the raw data file matches the stored value.
+Verifies the SHA-256 checksums of the raw data files (asset + context symbols).
 Run before any training to confirm the dataset hasn't changed.
 
 Usage:
@@ -17,9 +17,9 @@ ROOT = Path(__file__).parent.parent
 CFG = yaml.safe_load((ROOT / "config.yaml").read_text())
 
 
-def verify():
-    data_path = ROOT / CFG["raw_data_path"]
-    checksum_path = ROOT / CFG["checksum_path"]
+def verify(symbol: str):
+    data_path = ROOT / CFG["raw_data_template"].format(sym=symbol.lower())
+    checksum_path = ROOT / CFG["checksum_template"].format(sym=symbol.lower())
 
     if not data_path.exists():
         sys.exit(f"ERROR: Data file not found: {data_path}")
@@ -30,10 +30,10 @@ def verify():
     actual = hashlib.sha256(data_path.read_bytes()).hexdigest()
 
     if stored == actual:
-        print(f"✓  Checksum OK  ({actual[:16]}...)")
+        print(f"✓  {symbol:<5} checksum OK  ({actual[:16]}...)")
     else:
         sys.exit(
-            f"✗  CHECKSUM MISMATCH!\n"
+            f"✗  {symbol} CHECKSUM MISMATCH!\n"
             f"   Stored : {stored}\n"
             f"   Actual : {actual}\n"
             "   The raw data file has changed. Re-download or investigate."
@@ -41,4 +41,5 @@ def verify():
 
 
 if __name__ == "__main__":
-    verify()
+    for sym in [CFG["asset"]] + CFG["context_symbols"]:
+        verify(sym)

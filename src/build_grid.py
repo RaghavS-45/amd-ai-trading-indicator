@@ -165,6 +165,26 @@ def drop_sparse_days(df: pd.DataFrame, min_cov: float):
     keep = ~day.isin(bad_days.index)
     return df[keep], bad_days
 
+
+CONTEXT_COLS = ["close", "volume", "is_filled"]
+
+
+def join_context(df_grid: pd.DataFrame, symbol: str, df_raw: pd.DataFrame):
+    """
+    Put a context symbol on the same session grid (same flat-fill rules) and
+    join it onto the asset's rows by timestamp: row t gets the context bar
+    that opens at t, never t+1. Returns the joined grid and the context
+    real-bar share per asset day.
+    """
+    ctx = build_grid(df_raw).reindex(df_grid.index)[CONTEXT_COLS]
+    assert ctx["close"].notna().all()
+    prefix = symbol.lower()
+    out = df_grid.join(ctx.add_prefix(f"{prefix}_"))
+    day = pd.Series(df_grid.index.tz_convert(ET).date, index=df_grid.index)
+    real_frac = (~ctx["is_filled"]).groupby(day).mean()
+    return out, real_frac
+
+
 # ── Entry point ────────────────────────────────────────────────────
 
 def main():
@@ -186,6 +206,15 @@ def main():
     print(f"Days dropped (real-bar share below {CFG['min_day_coverage']:.0%}): {len(bad_days)}")
     print(bad_days.round(3).to_string())
     print(f"Grid rows after dropping : {len(df_grid):,}")
+
+    for sym in CFG["context_symbols"]:
+        path = ROOT / CFG["raw_data_template"].format(sym=sym.lower())
+        df_grid, real_frac = join_context(df_grid, sym, pd.read_parquet(path))
+        low = real_frac[real_frac < CFG["min_day_coverage"]]
+        print(f"Context {sym:<5}: filled {df_grid[f'{sym.lower()}_is_filled'].mean():.2%} of rows; "
+              f"days below {CFG['min_day_coverage']:.0%} real bars: {len(low)}")
+        if len(low):
+            print(low.round(3).to_string())
 
     grid_path.parent.mkdir(parents=True, exist_ok=True)
     df_grid.to_parquet(grid_path)

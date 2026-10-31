@@ -8,7 +8,7 @@ Usage (from other scripts):
 """
 
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Sequence
 
 import numpy as np
 import pandas as pd
@@ -43,7 +43,8 @@ def usable_mask(feat: pd.DataFrame, lab: pd.Series) -> np.ndarray:
 
 
 def build_dataset(end_date: Optional[str] = None,
-                  grid: Optional[pd.DataFrame] = None) -> pd.DataFrame:
+                  grid: Optional[pd.DataFrame] = None,
+                  sets: Optional[Sequence[str]] = None) -> pd.DataFrame:
     """
     Feature columns + label, fwd_ret, close, date (ET) for usable rows.
     Rows after end_date (ET date) are dropped before anything else.
@@ -54,7 +55,7 @@ def build_dataset(end_date: Optional[str] = None,
         dates = grid.index.tz_convert(ET).date
         grid = grid[dates <= pd.Timestamp(end_date).date()]
 
-    feat = compute_features(grid)
+    feat = compute_features(grid, sets)
     lab = make_labels(grid)
     keep = usable_mask(feat, lab)
 

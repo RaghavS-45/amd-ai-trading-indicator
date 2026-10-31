@@ -29,15 +29,26 @@ def _make_fake_ohlcv(n: int) -> pd.DataFrame:
             "low":  close * (1 - abs(rng.normal(0, 0.002, n))),
             "close": close,
             "volume": volume,
+            "trade_count": rng.integers(1, 200, n).astype(float),
+            "vwap": close * (1 + rng.normal(0, 0.0005, n)),
         },
         index=pd.date_range(
             "2024-01-02 14:35:00", periods=n, freq="1min", tz="UTC"
         ),
     )
+    for sym in CFG["context_symbols"]:
+        s = sym.lower()
+        df[f"{s}_close"] = 50 + np.cumsum(rng.normal(0, 0.05, n))
+        df[f"{s}_volume"] = rng.integers(1_000, 50_000, n).astype(float)
+        df[f"{s}_is_filled"] = False
     return df
 
 
-def test_features_identical_without_future_rows():
+ALL_SETS = [["base"], ["context"], ["intraday"], ["base", "context", "intraday"]]
+
+
+@pytest.mark.parametrize("sets", ALL_SETS)
+def test_features_identical_without_future_rows(sets):
     """
     Core leakage test:
     Features on rows 0..N-1 computed with the full DataFrame (N rows)
@@ -50,8 +61,8 @@ def test_features_identical_without_future_rows():
     full_df = _make_fake_ohlcv(N)
     short_df = full_df.iloc[:cut]
 
-    feat_full = compute_features(full_df).iloc[:cut]
-    feat_short = compute_features(short_df)
+    feat_full = compute_features(full_df, sets).iloc[:cut]
+    feat_short = compute_features(short_df, sets)
 
     # Align columns
     cols = feat_full.columns.tolist()

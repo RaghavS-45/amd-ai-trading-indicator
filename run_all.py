@@ -6,7 +6,7 @@ Phases run in order:
   2. Build minute grid
   3. Build features + labels (saves to disk)
   4. Baselines + logistic regression, walk-forward on the train period
-  5. Train LightGBM with walk-forward validation
+  5. Phase 5 experiments E5.1-E5.7 (LightGBM, context/intraday features, threshold)
   6. Calibrate, pick threshold, run final test eval
   7. Save all report figures to report/
 
@@ -26,15 +26,17 @@ scripts = [
     ROOT / "src" / "verify_checksum.py",
     ROOT / "src" / "build_grid.py",
     ROOT / "src" / "phase4_baselines.py",
-    # Phases 5-6 will be added here as they are built
+    [ROOT / "src" / "phase5_models.py", "--all"],
+    # Phase 6 will be added here when it is built
 ]
 
 
-def run(script: Path):
+def run(entry):
+    script, *args = entry if isinstance(entry, list) else [entry]
     print(f"\n{'='*60}")
-    print(f"  Running: {script.name}")
+    print(f"  Running: {script.name} {' '.join(args)}")
     print(f"{'='*60}")
-    result = subprocess.run([sys.executable, str(script)], check=False)
+    result = subprocess.run([sys.executable, str(script), *args], check=False)
     if result.returncode != 0:
         sys.exit(f"FAILED: {script.name}  (exit code {result.returncode})")
 

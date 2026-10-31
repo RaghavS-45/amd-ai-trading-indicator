@@ -10,10 +10,18 @@ Features are computed per session (ET date): no window reaches across the
 overnight gap into the previous day. The first rows of each session are NaN
 until every window has enough same-session history (33 bars with the
 current config, i.e. features start at 10:03 ET).
+
+Feature sets (config feature_sets, or the sets argument):
+  base     – asset returns, volatility, volume ratio, RSI, MACD, Bollinger, time of day
+  context  – returns of the context symbols (grid columns <sym>_close), bar t only
+  intraday – VWAP / open distance, volume and trade-count surprise, minutes since
+             open / to close
 """
 
 from pathlib import Path
+from typing import Optional, Sequence
 
+import exchange_calendars as xcals
 import numpy as np
 import pandas as pd
 import yaml
@@ -24,7 +32,11 @@ ROOT = Path(__file__).parent.parent
 CFG = yaml.safe_load((ROOT / "config.yaml").read_text())
 
 
-def compute_features(df: pd.DataFrame) -> pd.DataFrame:
+FEATURE_SETS = ("base", "context", "intraday")
+_CAL = None
+
+
+def compute_features(df: pd.DataFrame, sets: Optional[Sequence[str]] = None) -> pd.DataFrame:
     """
     Input : a DataFrame with columns [open, high, low, close, volume]
             sorted chronologically, index = DatetimeTZAware (UTC).
@@ -34,14 +46,25 @@ def compute_features(df: pd.DataFrame) -> pd.DataFrame:
 
     No future data is ever read inside this function.
     """
+    sets = CFG["feature_sets"] if sets is None else sets
+    unknown = set(sets) - set(FEATURE_SETS)
+    if unknown:
+        raise ValueError(f"Unknown feature sets: {sorted(unknown)}")
+    ordered = [s for s in FEATURE_SETS if s in sets]
+
     session = pd.Series(df.index.tz_convert(ET).date, index=df.index)
-    parts = [_session_features(g) for _, g in df.groupby(session, sort=False)]
+    parts = [_session_features(g, ordered) for _, g in df.groupby(session, sort=False)]
     if not parts:
-        return _session_features(df)
+        return _session_features(df, ordered)
     return pd.concat(parts)
 
 
-def _session_features(df: pd.DataFrame) -> pd.DataFrame:
+def _session_features(df: pd.DataFrame, sets: Sequence[str]) -> pd.DataFrame:
+    builders = {"base": _base, "context": _context, "intraday": _intraday}
+    return pd.concat([builders[s](df) for s in sets], axis=1)
+
+
+def _base(df: pd.DataFrame) -> pd.DataFrame:
     feat = pd.DataFrame(index=df.index)
 
     # ── 1. Log returns ──────────────────────────────────────────────
@@ -78,6 +101,54 @@ def _session_features(df: pd.DataFrame) -> pd.DataFrame:
     feat["tod_cos"] = np.cos(angle)
 
     return feat
+
+
+def _context(df: pd.DataFrame) -> pd.DataFrame:
+    feat = pd.DataFrame(index=df.index)
+    asset = CFG["asset"].lower()
+    asset_ret_10 = np.log(df["close"] / df["close"].shift(10))
+    for sym in CFG["context_symbols"]:
+        s = sym.lower()
+        close = df[f"{s}_close"]
+        for lag in CFG["context_return_lags"]:
+            feat[f"{s}_ret_{lag}"] = np.log(close / close.shift(lag))
+        if sym != "SPY":
+            feat[f"{asset}_minus_{s}_ret_10"] = asset_ret_10 - np.log(close / close.shift(10))
+    return feat
+
+
+def _intraday(df: pd.DataFrame) -> pd.DataFrame:
+    feat = pd.DataFrame(index=df.index)
+
+    # Session VWAP from bar VWAPs; filled bars have volume 0 and add nothing
+    cum_vol = df["volume"].cumsum()
+    vwap = (df["vwap"] * df["volume"]).cumsum() / cum_vol.replace(0, np.nan)
+    feat["vwap_dist"] = np.log(df["close"] / vwap)
+
+    # First bar of the session passed in (live code must pass the whole session)
+    feat["open_dist"] = np.log(df["close"] / df["open"].iloc[0])
+
+    w = CFG["surprise_window"]
+    for col, name in [("volume", "vol_surprise"), ("trade_count", "trades_surprise")]:
+        x = np.log1p(df[col])
+        base = x.shift(1).rolling(w)  # previous w bars, current bar excluded
+        mean, std = base.mean(), base.std()
+        z = (x - mean) / std.where(std > 0)
+        feat[name] = z.where(~((std == 0) & mean.notna()), 0.0)
+
+    feat["min_since_open"] = minutes_since_open(df.index)
+    close_utc = _session_close(df.index[0])
+    bar_end = df.index + pd.Timedelta(minutes=1)
+    feat["min_to_close"] = (close_utc - bar_end) / pd.Timedelta(minutes=1)
+    return feat
+
+
+def _session_close(ts: pd.Timestamp) -> pd.Timestamp:
+    global _CAL
+    if _CAL is None:
+        _CAL = xcals.get_calendar("XNYS")
+    day = pd.Timestamp(ts.tz_convert(ET).date())
+    return _CAL.session_close(day)
 
 
 # ── Private helper functions ────────────────────────────────────────

@@ -239,7 +239,8 @@ Full per-fold tables for all three models: `report/phase4_results.csv`; pooled:
 
 ## Phase 5 – LightGBM, context and intraday features, confidence threshold (2026-10-31)
 
-**Status:** 📝 Pre-registered. Experiments are listed here **before** any of them is run.
+**Status:** ❌ Run 2026-10-31: **no experiment passed the bar.** The experiment list below was
+committed before any run (commit `cbd0025`) and is unchanged.
 
 **Bar revised (2026-10-31):** the Phase 4 entry said "positive bps/trade at 3x costs". The
 bar is now: (a) pooled direction accuracy >= base rate on the same rows + 2 x day-clustered
@@ -288,7 +289,91 @@ cost. 3x cost is reported as a stress test only. The Phase 4 text is left unchan
 - Every experiment is logged with pass/fail against the bar, including failures.
 - Any direction accuracy above ~60% is treated as a leak until proven otherwise.
 
-**Results:** _not run yet._
+**Results:**
+
+*Setup as registered:* 142,064 rows, 412 days, 9 folds, validation 2025-06-03 → 2026-06-30.
+Context data: SPY 192,133 / QQQ 190,238 / NVDA 195,215 raw rows (coverage 98.6% / 94.9% /
+99.3%); no AMD day had under 50% real context bars, so no rows changed and the AMD columns
+of the grid are identical to before. Context bars filled: SPY 0.77%, QQQ 4.52%, NVDA 0.03%.
+
+*Deviations and notes (honest record):*
+- The base set has **12** features, not 11 as written above (5 returns, volatility,
+  vol_ratio, RSI, MACD, Bollinger, 2 time-of-day). Nothing else changes.
+- E5.3–E5.5 used the **config** params: E5.1 had higher pooled 1x bps/trade (−0.71 vs −1.57).
+- E5.7 used **E5.6** (logistic, all features): the highest 1x bps/trade among E5.1–E5.6.
+- `vol_surprise` reaches about −27 on filled bars (volume 0 against a normal recent
+  baseline). This follows from the registered definition; not changed.
+- Reliability plot: bins with under 50 rows are left off the figure (they distort it, e.g. a
+  2-row bin at 1.0); all bins are kept in the printed table and the ECE.
+
+*Pooled over all 9 folds (E5.7: folds 2–9, since τ for fold k needs folds < k):*
+| ID | Features | Sig/day | Dir acc (±SE) | Bar | Strict acc | Trades/day | bps/trade 1x | bps/trade 3x | P&L 1x | P&L 3x | Pass |
+|----|----------|---------|---------------|-----|------------|------------|--------------|--------------|--------|--------|------|
+| E5.1 | LGBM config, base (12) | 236.7 | 50.22% (0.31) | 50.90% | 38.00% | 29.3 | −0.71 | −2.57 | −$606 | −$3,773 | ❌ |
+| E5.2 | LGBM regularized, base (12) | 236.3 | 49.78% (0.37) | 51.03% | 37.97% | 27.9 | −1.57 | −3.42 | −$2,073 | −$5,085 | ❌ |
+| E5.3 | LGBM, base + context (26) | 229.9 | 50.48% (0.34) | 50.97% | 38.47% | 28.3 | −1.20 | −3.05 | −$2,454 | −$5,513 | ❌ |
+| E5.4 | LGBM, base + intraday (18) | 246.0 | 49.50% (0.36) | 51.00% | 37.14% | 29.7 | −1.51 | −3.38 | −$2,551 | −$5,755 | ❌ |
+| E5.5 | LGBM, all sets (32) | 238.9 | 49.96% (0.37) | 51.04% | 37.88% | 28.9 | −0.72 | −2.58 | −$1,548 | −$4,666 | ❌ |
+| E5.6 | Logistic, all sets (32) | 194.8 | 50.67% (0.40) | 51.09% | 39.70% | 22.4 | **+0.89** | −0.91 | +$1,865 | −$553 | ❌ (direction) |
+| E5.7 | Threshold on E5.6 | 54.2 | 50.48% (0.79) | 51.75% | 43.24% | 7.8 | **+1.24** | −0.18 | +$1,276 | +$528 | ❌ (direction) |
+
+Base rate (share of positive forward returns): 50.29% on all 9 folds, 50.17% on folds 2–9.
+Bar = base rate + 2 × day-clustered SE of the experiment's direction accuracy.
+
+*E5.6 per fold (logistic, all features):*
+| Fold | Validation | Dir acc | bps/trade 1x | P&L 1x |
+|------|------------|---------|--------------|--------|
+| 1 | 2025-06-03 → 07-16 | 50.93% | −0.29 | −$17 |
+| 2 | 2025-07-17 → 08-27 | 51.10% | +1.19 | +$119 |
+| 3 | 2025-08-28 → 10-09 | 50.19% | −1.27 | −$113 |
+| 4 | 2025-10-10 → 11-20 | 48.53% | −0.68 | −$136 |
+| 5 | 2025-11-21 → 2026-01-06 | 55.14% | +4.90 | +$527 |
+| 6 | 2026-01-07 → 02-19 | 50.96% | −0.53 | −$104 |
+| 7 | 2026-02-20 → 04-02 | 51.52% | +2.16 | +$311 |
+| 8 | 2026-04-06 → 05-15 | 48.90% | −0.81 | −$334 |
+| 9 | 2026-05-18 → 06-30 | 50.80% | +3.36 | +$1,613 |
+
+Without fold 9: direction 50.65% (±0.43) vs base 50.15%; +0.44 bps/trade; +$252.
+
+*E5.7 per fold (τ chosen on earlier folds, min 5 signals/day):*
+| Fold | τ | Sig/day | Dir acc | bps/trade 1x | P&L 1x |
+|------|---|---------|---------|--------------|--------|
+| 2 | 0.45 | 11.0 | 45.29% | −6.57 | −$87 |
+| 3 | 0.44 | 22.8 | 50.29% | +3.16 | +$77 |
+| 4 | 0.44 | 84.9 | 51.14% | +0.45 | +$40 |
+| 5 | 0.44 | 23.6 | 56.21% | +5.22 | +$135 |
+| 6 | 0.44 | 46.8 | 50.32% | +1.64 | +$52 |
+| 7 | 0.44 | 24.6 | 45.18% | −3.56 | −$90 |
+| 8 | 0.44 | 44.7 | 46.68% | −8.44 | −$720 |
+| 9 | 0.39 | 174.9 | 51.51% | +5.57 | +$1,870 |
+
+Without fold 9: direction 49.79% (±0.97), −1.07 bps/trade, −$594, 36.9 signals/day.
+Every fold met the 5 signals/day minimum.
+
+*Reliability (E5.6, pooled out-of-sample):* ECE 0.013 (Up), 0.007 (Down). Well calibrated
+where almost all predictions sit (0.2–0.5). Above 0.5 the model is **overconfident**:
+predicted ~0.53 → observed ~0.43 for both classes (about 1,100 rows each). Figure:
+`report/figures/reliability_phase5.png`.
+
+*Optimistic τ curve (E5.6, all folds, hindsight):* direction accuracy stays at 50.6–50.8%
+from τ 0.34 to 0.43 and **falls** below 50% above τ 0.45. Higher confidence does not mean
+better direction. The large bps/trade at τ ≥ 0.54 come from fewer than 3 signals/day
+with direction accuracy below 50% and SEs of 3–15 points: noise. Full curve:
+`report/phase5_E5.7_tau_curve.csv`.
+
+**Conclusions:**
+- No model, feature set or threshold shows direction skill: every direction accuracy is
+  within about 1 SE of the base rate. LightGBM is no better than logistic regression and
+  slightly worse on these features.
+- Context (SPY/QQQ/NVDA) and intraday features did not help LightGBM (E5.3–E5.5 vs E5.1).
+- The only positive 1x results (E5.6, E5.7) depend on fold 9. Without it, E5.6 is barely
+  positive and E5.7 is negative. They also come from choosing the best of six on the same
+  validation data. They do not meet the bar, and they should not be read as evidence of an edge.
+- A confidence threshold cannot create skill the probabilities do not have. Calibration is
+  good in the bulk and overconfident in the tail, so a high τ selects worse signals.
+- Files: `report/phase5_summary.csv`, `report/phase5_E5.x_folds.csv`,
+  `report/phase5_E5.7_tau_curve.csv`, `report/phase5_run.log`; out-of-sample predictions
+  `report/phase5_E5.x_oos.parquet` (gitignored, regenerated by `run_all.py`).
 
 ---
 

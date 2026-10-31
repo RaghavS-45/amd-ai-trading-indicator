@@ -21,6 +21,9 @@ test_end:   "2026-10-15"
 live_start: ""
 live_end:   ""
 
+# ── Context symbols (Phase 5) ──────────────────────────────────────
+context_symbols: [SPY, QQQ, NVDA]
+
 # ── Bar settings ───────────────────────────────────────────────────
 bar_timeframe: "1Min"          # "1Min" or "5Min"
 market_open:  "09:30"
@@ -34,6 +37,9 @@ move_threshold: 0.0010         # |return| > threshold → Up/Down; else Neutral
                                # 10 bps: ~equal Up/Down/Neutral (EDA 2026-10-31); ~10x round-trip cost
 
 # ── Feature lags ───────────────────────────────────────────────────
+feature_sets: [base]           # base | context | intraday (Phase 5 experiments pass their own)
+context_return_lags: [1, 5, 10, 30]
+surprise_window: 20            # previous same-session bars for volume / trade-count surprise
 return_lags: [1, 3, 5, 10, 30]
 vol_window: 20
 volume_ma_window: 20
@@ -49,6 +55,7 @@ random_seed: 42
 lgbm_n_estimators: 500
 lgbm_learning_rate: 0.05
 lgbm_num_leaves: 31
+min_signals_per_day: 5          # threshold search must keep at least this many signals/day
 confidence_threshold: 0.55     # placeholder; tuned on validation in Phase 6
 
 # ── Costs (paper trading simulation) ───────────────────────────────
@@ -60,6 +67,8 @@ shares_per_trade: 10
 raw_data_path:     "data/amd_1min_raw.parquet"
 grid_data_path:    "data/amd_1min_grid.parquet"   # complete minute grid
 checksum_path:     "data/amd_1min_raw.sha256"
+raw_data_template: "data/{sym}_1min_raw.parquet"   # per symbol, lower-case
+checksum_template: "data/{sym}_1min_raw.sha256"
 model_path:        "models/lgbm_model.pkl"
 calibrated_model_path: "models/lgbm_calibrated.pkl"
 signals_db_path:   "app/signals.db"
