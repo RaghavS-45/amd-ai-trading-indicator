@@ -12,19 +12,21 @@ ML_Project/
 ├── requirements.txt     ← pinned versions
 ├── run_all.py           ← reproduce all results from scratch
 ├── EXPERIMENTS.md       ← every experiment log entry (required for report)
-├── data/                ← raw + clean Parquet files, SHA-256 checksum
+├── data/                ← raw + grid Parquet files, SHA-256 checksum
 ├── src/
 │   ├── download_data.py ← Phase 1: fetch from Alpaca
-│   ├── clean_data.py    ← filter to regular session hours
+│   ├── build_grid.py    ← complete per-session minute grid, fill gaps
 │   ├── features.py      ← THE shared feature function (train + live)
 │   ├── labels.py        ← 3-class label generation
+│   ├── sessions.py      ← row selection (skip first drop_open_mins)
 │   └── verify_checksum.py
 ├── models/              ← saved .pkl model files
 ├── app/                 ← FastAPI server + frontend (Phase 7)
 ├── notebooks/           ← exploration notebooks (Phase 2)
 ├── report/              ← figures and final report
 └── tests/
-    └── test_no_leakage.py ← automated leakage guard
+    ├── test_no_leakage.py ← automated leakage guard
+    └── test_sessions.py   ← opening-minutes row selection
 ```
 
 ## Quick Start

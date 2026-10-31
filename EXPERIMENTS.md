@@ -28,7 +28,8 @@ Date format: YYYY-MM-DD.
 
 ## Phase 1 – Data Download (2026-10-29)
 
-**Status:** ✅ Complete
+**Status:** ⚠️ Superseded by Phase 1b. These numbers are from the old date range
+(2023-01-03 to 2024-12-31) and are kept for the record.
 
 **Results:**
 | Metric | Value |
@@ -45,6 +46,47 @@ The ~4.6% gap (~4,518 missing bars) represents minutes with zero IEX trades, not
 These will become NaN rows after feature computation (rolling windows); handled by `dropna()`.
 
 **No action needed on bar timeframe.**
+
+---
+
+## Phase 1b – Re-download for 2024-11-01 → 2026-10-15 and minute grid (2026-10-31)
+
+**Status:** ✅ Complete
+
+**Why:** Dates moved to 2024-11-01 → 2026-10-15 in `config.yaml` (train to 2026-06-30,
+hold-out test from 2026-07-01), so the data was re-downloaded and placed on a complete
+minute grid.
+
+**Results:**
+| Metric | Value |
+|--------|-------|
+| Raw rows downloaded | 185,522 |
+| Trading days with data | 487 |
+| Received session bars (IEX, 09:30–16:00 ET) | 184,063 |
+| **Coverage** (vs 390/day) | **96.9%** |
+| Grid rows (after dropping days) | 188,640 |
+| Filled (synthetic) bars | 4,634 (2.46%) |
+
+**Grid method (`src/build_grid.py`):**
+- One row per minute of every XNYS session (exchange-calendars), half-days included.
+- A missing minute becomes a flat bar at the previous close with volume 0 and is
+  flagged by `is_filled`.
+- Days whose share of real bars is below `min_day_coverage` (0.5) are dropped.
+
+**Dropped days:**
+| Day | Real bars | Reason |
+|-----|-----------|--------|
+| 2024-12-23 | 53 / 390 | IEX bars stop at 10:22 ET; rest of the day missing from the feed |
+| 2025-01-09 | 0 | Market closed (national day of mourning, President Carter); exchange-calendars 4.5.4 still lists it as a session |
+| 2025-03-10 | 0 | No bars in the Alpaca IEX download (source data gap, not a market closure) |
+| 2026-10-15 | 0 | Not downloaded: raw data ends 2026-10-14 because Alpaca treats `end="2026-10-15"` as midnight. **Open issue:** the last test day is missing |
+
+**Decisions:**
+- Removed `src/clean_data.py`. `build_grid.py` is the only data step, and `run_all.py`
+  runs it after checksum verification.
+- The first `drop_open_mins` (5) minutes of each session are excluded by row selection
+  (`src/sessions.py::tradable_mask`) after features and labels are computed on the full
+  grid. They are not deleted from the grid, so they still serve as feature warm-up.
 
 ---
 

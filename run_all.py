@@ -3,7 +3,7 @@ run_all.py  –  single entry point that regenerates all results.
 
 Phases run in order:
   1. Verify checksum
-  2. Clean data
+  2. Build minute grid
   3. Build features + labels (saves to disk)
   4. Train baselines
   5. Train LightGBM with walk-forward validation
@@ -24,7 +24,7 @@ from pathlib import Path
 ROOT = Path(__file__).parent
 scripts = [
     ROOT / "src" / "verify_checksum.py",
-    ROOT / "src" / "clean_data.py",
+    ROOT / "src" / "build_grid.py",
     # Phases 3-6 will be added here as they are built
 ]
 
