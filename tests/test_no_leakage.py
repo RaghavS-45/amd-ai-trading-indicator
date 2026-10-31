@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from features import compute_features
+from features import CFG, compute_features
 
 
 def _make_fake_ohlcv(n: int) -> pd.DataFrame:
@@ -73,9 +73,67 @@ def test_features_identical_without_future_rows():
         )
 
 
+def _make_two_sessions() -> pd.DataFrame:
+    days = ["2025-01-15", "2025-01-16"]
+    idx = pd.DatetimeIndex(
+        [ts for d in days for ts in pd.date_range(
+            f"{d} 09:30", f"{d} 15:59", freq="1min", tz="America/New_York")]
+    ).tz_convert("UTC")
+    df = _make_fake_ohlcv(len(idx))
+    df.index = idx
+    return df
+
+
+def test_features_do_not_cross_overnight_gap():
+    """Changing every price of day 1 must not change any feature of day 2."""
+    df = _make_two_sessions()
+    day1 = slice(0, 390)
+    changed = df.copy()
+    changed.iloc[day1, :4] *= 1.5
+    changed.iloc[day1, 4] *= 3
+
+    a = compute_features(df).iloc[390:]
+    b = compute_features(changed).iloc[390:]
+    pd.testing.assert_frame_equal(a, b)
+
+
+def test_session_warmup_is_nan():
+    """Return features need same-session history; the first bar has none."""
+    df = _make_two_sessions()
+    feat = compute_features(df)
+    for start in (0, 390):
+        first = feat.iloc[start]
+        assert first.drop(["tod_sin", "tod_cos"]).isna().all()
+        for lag in CFG["return_lags"]:
+            col = feat[f"ret_{lag}"].iloc[start:start + 390]
+            assert col.iloc[:lag].isna().all()
+            assert col.iloc[lag:].notna().all()
+
+
+def test_return_lags_cover_last_n_bars():
+    df = _make_two_sessions()
+    feat = compute_features(df)
+    t = 200
+    for lag in CFG["return_lags"]:
+        expected = np.log(df["close"].iloc[t] / df["close"].iloc[t - lag])
+        assert abs(feat[f"ret_{lag}"].iloc[t] - expected) < 1e-12
+
+
 def test_feature_columns_stable():
     """Feature names must not change between calls – model depends on column order."""
     df = _make_fake_ohlcv(100)
     cols1 = list(compute_features(df).columns)
     cols2 = list(compute_features(df).columns)
     assert cols1 == cols2
+
+
+def test_rsi_defined_without_losses():
+    """Only gains -> RSI 100; flat prices -> RSI 50; warm-up stays NaN."""
+    df = _make_two_sessions()
+    p = CFG["rsi_period"]
+    df.iloc[100:100 + p + 1, 3] = np.linspace(100, 101, p + 1)
+    df.iloc[300:300 + p + 1, 3] = 100.0
+    rsi = compute_features(df)["rsi"]
+    assert rsi.iloc[100 + p] == 100
+    assert rsi.iloc[300 + p] == 50
+    assert rsi.iloc[:p].isna().all()

@@ -90,4 +90,43 @@ minute grid.
 
 ---
 
+## Phase 3a – Per-session features and label tests (2026-10-31)
+
+**Status:** ✅ Complete
+
+**Problem found:** At 09:30 the median |1-min log return| was 0.0127 vs 0.00059 for
+the rest of the day (about 20 times larger). The overnight gap leaked into return,
+volatility, RSI, Bollinger and MACD features for the first ~30 minutes of each session.
+
+**Change (`src/features.py`):**
+- `compute_features()` now computes every feature per session (ET date). The first
+  return of a session is NaN, and MACD EMAs use `min_periods`, so no window uses the
+  previous day.
+- **Bug fix:** `ret_L` was `log_ret.shift(L-1).rolling(L).sum()`, which is the return from
+  t-(2L-1) to t-(L-1), not the last L bars as documented (ret_30 lagged by 29 bars).
+  Now `ret_L = log(close_t / close_(t-L))`.
+- **RSI fix:** RSI was NaN on 23 mid-session rows (14 bars with no down move: loss = 0).
+  It is now 100 when there are only gains and 50 when prices are flat.
+
+**Effect on the grid:**
+| Metric | Value |
+|--------|-------|
+| Warm-up per session | 33 bars (features valid from 10:03 ET) |
+| Rows with all features valid | 172,602 of 188,640 (91.5%) |
+| Remaining NaNs after warm-up | 0 |
+
+`drop_open_mins` (5) has no extra effect now because warm-up covers it. It stays as the
+row-selection rule for training and live signals.
+
+**Tests added (18 total, all pass):**
+- `test_no_leakage.py`: changing all of day 1 does not change day 2 features; per-session
+  warm-up is NaN; `ret_L` equals the last-L-bar log return (these three fail on the old code); RSI is
+  100 with only gains and 50 when flat.
+- `test_labels.py`: exact 10-minute horizon vs a position-based reference; filled target
+  bars; lookup by timestamp (a dropped minute gives NA, not the next row); NA in the last
+  10 minutes of each session, including a half-day (last label 12:49); prices after the
+  horizon do not change the label; Int8 output.
+
+---
+
 <!-- Add new experiment entries below as phases progress -->

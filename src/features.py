@@ -5,6 +5,11 @@ Both must call compute_features() from this file – never define features twice
 
 Rule: every feature uses only data up to the current row (no look-ahead).
 The automated leakage test in tests/test_no_leakage.py verifies this.
+
+Features are computed per session (ET date): no window reaches across the
+overnight gap into the previous day. The first rows of each session are NaN
+until every window has enough same-session history (33 bars with the
+current config, i.e. features start at 10:03 ET).
 """
 
 from pathlib import Path
@@ -12,6 +17,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import yaml
+
+from sessions import ET, minutes_since_open
 
 ROOT = Path(__file__).parent.parent
 CFG = yaml.safe_load((ROOT / "config.yaml").read_text())
@@ -21,20 +28,27 @@ def compute_features(df: pd.DataFrame) -> pd.DataFrame:
     """
     Input : a DataFrame with columns [open, high, low, close, volume]
             sorted chronologically, index = DatetimeTZAware (UTC).
-    Output: a DataFrame of features, same index, NaN rows at the top
-            (due to rolling windows) are intentionally kept so index
-            alignment is preserved; callers must dropna() themselves.
+    Output: a DataFrame of features, same index. Warm-up NaN rows at the
+            start of every session are kept so index alignment is
+            preserved; callers must dropna() themselves.
 
     No future data is ever read inside this function.
     """
+    session = pd.Series(df.index.tz_convert(ET).date, index=df.index)
+    parts = [_session_features(g) for _, g in df.groupby(session, sort=False)]
+    if not parts:
+        return _session_features(df)
+    return pd.concat(parts)
+
+
+def _session_features(df: pd.DataFrame) -> pd.DataFrame:
     feat = pd.DataFrame(index=df.index)
 
     # ── 1. Log returns ──────────────────────────────────────────────
     log_ret = np.log(df["close"] / df["close"].shift(1))
 
     for lag in CFG["return_lags"]:
-        feat[f"ret_{lag}"] = log_ret.shift(lag - 1).rolling(lag).sum()
-        # ret_1 = last 1-bar return; ret_5 = sum of last 5 bar returns
+        feat[f"ret_{lag}"] = np.log(df["close"] / df["close"].shift(lag))
 
     # ── 2. Rolling volatility ───────────────────────────────────────
     feat["volatility"] = log_ret.rolling(CFG["vol_window"]).std()
@@ -58,9 +72,8 @@ def compute_features(df: pd.DataFrame) -> pd.DataFrame:
     feat["bb_pos"] = _bb_position(df["close"], CFG["bb_window"], CFG["bb_std"])
 
     # ── 7. Time of day (sine/cosine encoding, avoids discontinuity) ──
-    minutes_since_open = _minutes_since_open(df.index)
     session_length = 390  # minutes in a regular session
-    angle = 2 * np.pi * minutes_since_open / session_length
+    angle = 2 * np.pi * minutes_since_open(df.index) / session_length
     feat["tod_sin"] = np.sin(angle)
     feat["tod_cos"] = np.cos(angle)
 
@@ -73,15 +86,15 @@ def _rsi(close: pd.Series, period: int) -> pd.Series:
     delta = close.diff()
     gain = delta.clip(lower=0).rolling(period).mean()
     loss = (-delta.clip(upper=0)).rolling(period).mean()
-    rs = gain / loss.replace(0, np.nan)
-    return 100 - (100 / (1 + rs))
+    rsi = 100 - (100 / (1 + gain / loss))  # loss == 0 -> rs = inf -> 100
+    return rsi.mask((gain == 0) & (loss == 0), 50.0)
 
 
 def _macd_hist(close: pd.Series, fast: int, slow: int, signal: int) -> pd.Series:
-    ema_fast = close.ewm(span=fast, adjust=False).mean()
-    ema_slow = close.ewm(span=slow, adjust=False).mean()
+    ema_fast = close.ewm(span=fast, adjust=False, min_periods=fast).mean()
+    ema_slow = close.ewm(span=slow, adjust=False, min_periods=slow).mean()
     macd_line = ema_fast - ema_slow
-    signal_line = macd_line.ewm(span=signal, adjust=False).mean()
+    signal_line = macd_line.ewm(span=signal, adjust=False, min_periods=signal).mean()
     return macd_line - signal_line
 
 
@@ -92,15 +105,3 @@ def _bb_position(close: pd.Series, window: int, n_std: float) -> pd.Series:
     lower = mid - n_std * std
     # 0 = at lower band, 0.5 = at mid, 1 = at upper band
     return (close - lower) / (upper - lower).replace(0, np.nan)
-
-
-def _minutes_since_open(index: pd.DatetimeIndex) -> pd.Series:
-    import pytz
-    et = pytz.timezone("America/New_York")
-    local = index.tz_convert(et)
-    open_time = pd.Timestamp("09:30").time()
-    minutes = pd.Series(
-        [(t.hour * 60 + t.minute) - (9 * 60 + 30) for t in local.time],
-        index=index,
-    )
-    return minutes.clip(lower=0)
