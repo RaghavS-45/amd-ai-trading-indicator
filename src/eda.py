@@ -20,8 +20,9 @@ import pandas as pd
 import yaml
 
 import labels
+from dataset import forward_return, usable_mask
 from features import compute_features
-from sessions import ET, tradable_mask
+from sessions import ET
 
 ROOT = Path(__file__).parent.parent
 CFG = yaml.safe_load((ROOT / "config.yaml").read_text())
@@ -44,15 +45,6 @@ def labels_at(df: pd.DataFrame, threshold: float) -> pd.Series:
         return labels.make_labels(df)
     finally:
         labels.CFG["move_threshold"] = saved
-
-
-def forward_return(df: pd.DataFrame) -> pd.Series:
-    """Log return to t + horizon_bars minutes, same timestamp lookup as labels.py."""
-    target = df.index + pd.Timedelta(minutes=CFG["horizon_bars"])
-    future = df["close"].reindex(target).to_numpy()
-    same_day = df.index.tz_convert(ET).date == target.tz_convert(ET).date
-    future = np.where(same_day, future, np.nan)
-    return pd.Series(np.log(future / df["close"].to_numpy()), index=df.index)
 
 
 def class_shares(lab: pd.Series) -> dict:
@@ -120,7 +112,7 @@ def main():
     ref = np.where(fwd > thr, 1, np.where(fwd < -thr, -1, 0))
     assert (lab.dropna().to_numpy() == ref[lab.notna().to_numpy()]).all()
 
-    usable = feat.notna().all(axis=1).to_numpy() & lab.notna().to_numpy() & tradable_mask(grid.index)
+    usable = usable_mask(feat, lab)
     df = grid[usable]
     fwd_u = fwd[usable]
     fwd_bps = fwd_u * BPS

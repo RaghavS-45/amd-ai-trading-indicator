@@ -5,7 +5,7 @@ Phases run in order:
   1. Verify checksum
   2. Build minute grid
   3. Build features + labels (saves to disk)
-  4. Train baselines
+  4. Baselines + logistic regression, walk-forward on the train period
   5. Train LightGBM with walk-forward validation
   6. Calibrate, pick threshold, run final test eval
   7. Save all report figures to report/
@@ -25,7 +25,8 @@ ROOT = Path(__file__).parent
 scripts = [
     ROOT / "src" / "verify_checksum.py",
     ROOT / "src" / "build_grid.py",
-    # Phases 3-6 will be added here as they are built
+    ROOT / "src" / "phase4_baselines.py",
+    # Phases 5-6 will be added here as they are built
 ]
 
 

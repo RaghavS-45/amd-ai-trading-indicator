@@ -175,4 +175,66 @@ model the most Up/Down examples, still ~10× the assumed cost.
 
 ---
 
+## Phase 4 – Baselines and logistic regression, walk-forward (2026-10-31)
+
+**Status:** ✅ Complete
+
+**Setup (`src/phase4_baselines.py`):**
+- Rows: `dataset.build_dataset(end_date=train_end)`: all features, label, `tradable_mask`;
+  train period only (142,064 rows, 412 days). The hold-out test is never loaded.
+- Walk-forward (`src/walkforward.py`): expanding window, 9 folds of 30 trading days,
+  1 trading day left out between train and validation, first fold trains on 141 days.
+  Validation covers 2025-06-03 → 2026-06-30 (270 days, 93,150 rows).
+- Models: always-Up; RSI rule (Up if RSI < 30, Down if RSI > 70, else no signal);
+  logistic regression (StandardScaler + LogisticRegression, multinomial, seed 42),
+  fit per fold on train rows, target = `make_labels()`, predicted Neutral = no signal.
+- Metrics (`src/evaluate.py`): direction accuracy (sign of the 10-min forward return;
+  a zero return counts as wrong), strict accuracy (label equals the signal, i.e. the move
+  beyond 10 bps that way), signals/day, and one non-overlapping 10-minute trade per signal
+  (signals while a trade is open are skipped), 10 shares, round-trip cost $0.20/trade at
+  1x and $0.60 at 3x. Entry at the signal bar's close is slightly optimistic; the
+  slippage assumption is meant to cover it.
+- SE: day-clustered (main). Signals on adjacent minutes share most of their 10-minute
+  window, so the naive binomial SE is 2-3x too small (always-Up direction: 0.16% naive vs
+  0.43% clustered).
+
+**Pooled results (9 folds):**
+| Model | Sig/day | Dir acc (±SE) | Strict acc (±SE) | Trades/day | Trade dir acc | P&L 1x | bps/trade 1x | P&L 3x | bps/trade 3x |
+|-------|---------|---------------|------------------|------------|---------------|--------|--------------|--------|--------------|
+| Always-Up | 345.0 | 50.29% (0.43) | 35.63% (0.47) | 34.8 | 49.94% | −$314 | −0.54 | −$4,072 | −2.45 |
+| RSI rule | 81.8 | 50.51% (0.67) | 36.27% (0.62) | 17.1 | 51.01% | +$142 | −0.73 | −$1,706 | −2.63 |
+| Logistic | 189.0 | 50.20% (0.43) | 39.47% (0.42) | 21.5 | 50.60% | −$225 | −0.27 | −$2,550 | −2.04 |
+
+Base rate: 50.29% of validation rows have a positive forward return.
+RSI P&L is positive in dollars but negative per trade in bps: its winning trades fell in
+the later, higher-price folds, so dollar totals weight them more.
+
+**Per fold (logistic):**
+| Fold | Validation | Train days | Up share | Dir acc | Strict acc | P&L 1x | P&L 3x |
+|------|------------|------------|----------|---------|------------|--------|--------|
+| 1 | 2025-06-03 → 07-16 | 141 | 28% | 47.89% | 35.48% | −$60 | −$242 |
+| 2 | 2025-07-17 → 08-27 | 171 | 44% | 51.88% | 40.36% | +$102 | −$98 |
+| 3 | 2025-08-28 → 10-09 | 201 | 51% | 50.69% | 39.19% | −$26 | −$236 |
+| 4 | 2025-10-10 → 11-20 | 231 | 58% | 48.67% | 39.04% | −$458 | −$785 |
+| 5 | 2025-11-21 → 2026-01-06 | 261 | 49% | 55.03% | 42.26% | +$234 | +$38 |
+| 6 | 2026-01-07 → 02-19 | 291 | 50% | 49.91% | 39.00% | −$137 | −$406 |
+| 7 | 2026-02-20 → 04-02 | 321 | 39% | 49.33% | 37.90% | −$134 | −$406 |
+| 8 | 2026-04-06 → 05-15 | 351 | 35% | 49.66% | 39.34% | −$493 | −$790 |
+| 9 | 2026-05-18 → 06-30 | 381 | 52% | 50.28% | 41.47% | +$747 | +$377 |
+
+Full per-fold tables for all three models: `report/phase4_results.csv`; pooled:
+`report/phase4_summary.csv`.
+
+**Conclusions:**
+- No model shows direction skill: all three are within 1 SE of the 50.29% base rate.
+- Logistic regression's higher strict accuracy (39.5% vs 35.6% for always-Up) comes with
+  no direction skill (50.2%). It has learned *when* large moves are likely (volatility
+  timing), not which way. Strict accuracy alone would overstate it.
+- Nothing is profitable per trade, even at normal costs; folds 8–9 are positive for
+  always-Up too, so they reflect the market's drift in that window, not model skill.
+- Bar for Phase 5: direction accuracy clearly above ~50.3% (more than 2 clustered SEs,
+  about 51.2%) with positive bps/trade at 3x costs.
+
+---
+
 <!-- Add new experiment entries below as phases progress -->

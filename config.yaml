@@ -10,6 +10,8 @@ train_end:   "2026-06-30"
 
 # walk-forward validation window length (trading days)
 val_window_days: 30
+wf_min_train_days: 120          # first walk-forward fold trains on at least this many days
+wf_gap_days: 1                 # trading days left out between train and validation
 
 # final hold-out test  – touch only once in Phase 6
 test_start: "2026-07-01"
