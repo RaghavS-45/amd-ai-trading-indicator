@@ -237,4 +237,59 @@ Full per-fold tables for all three models: `report/phase4_results.csv`; pooled:
 
 ---
 
+## Phase 5 – LightGBM, context and intraday features, confidence threshold (2026-10-31)
+
+**Status:** 📝 Pre-registered. Experiments are listed here **before** any of them is run.
+
+**Bar revised (2026-10-31):** the Phase 4 entry said "positive bps/trade at 3x costs". The
+bar is now: (a) pooled direction accuracy >= base rate on the same rows + 2 x day-clustered
+SE (about 51.2% on the Phase 4 rows) **and** (b) mean bps per trade > 0 at **normal (1x)**
+cost. 3x cost is reported as a stress test only. The Phase 4 text is left unchanged.
+
+**Fixed for every experiment:** the rows from `dataset.build_dataset(end_date=train_end)`
+(142,064 rows, 412 days); the 9 walk-forward folds from Phase 4 (validation 2025-06-03 →
+2026-06-30, 1-day gap); the metrics from `evaluate.evaluate_signals`. The hold-out test
+(2026-07-01 → 2026-10-15) is not loaded.
+
+**Feature sets:**
+- *base*: the 11 current features.
+- *context*: SPY, QQQ, NVDA 1-min bars (Alpaca IEX), same grid and flat-fill rules, joined
+  by timestamp (bar t of each symbol, never t+1). Log returns over 1/5/10/30 bars per
+  symbol, plus AMD − QQQ and AMD − NVDA 10-bar return.
+- *intraday*: distance from session VWAP, distance from the 09:30 open, volume and
+  trade-count surprise vs the previous 20 bars of the same session, minutes since open,
+  minutes to close (XNYS calendar, so half-days are right).
+
+**Experiments:**
+| ID | Model | Features |
+|----|-------|----------|
+| E5.1 | LightGBM, config params (500 trees, lr 0.05, 31 leaves) | base |
+| E5.2 | LightGBM, regularized (300 trees, lr 0.05, 15 leaves, min_child_samples 500, feature and bagging fraction 0.8, L2 1.0) | base |
+| E5.3 | LightGBM, params of E5.1 or E5.2, whichever has the higher pooled 1x bps/trade | base + context |
+| E5.4 | same params as E5.3 | base + intraday |
+| E5.5 | same params as E5.3 | base + context + intraday |
+| E5.6 | Logistic regression (control: features vs model) | base + context + intraday |
+| E5.7 | Confidence threshold + reliability diagram on the model chosen below | as chosen |
+
+**Rules decided in advance:**
+- E5.1–E5.6: most likely class; Neutral = no signal. LightGBM is multiclass,
+  deterministic, seed 42, fit per fold on training rows only, fixed tree count (no early
+  stopping).
+- E5.7 model: the one with the highest pooled 1x bps/trade among E5.1–E5.6. Choosing the
+  best of six on the same validation data adds selection bias; the Phase 6 hold-out test is
+  the real check.
+- E5.7 signal: the more likely of Up/Down, only if its probability >= τ (grid 0.34–0.70,
+  step 0.01). τ for fold k is the value with the best pooled 1x bps/trade on the
+  out-of-sample predictions of folds 1…k−1, among values giving >= 5 signals/day, then
+  applied to fold k. Reported pooled over folds 2–9, with τ and signals/day per fold. The
+  τ curve over all folds is shown as an optimistic diagnostic only.
+- Reliability diagram: pooled out-of-sample Up and Down probabilities, 10 bins, with counts,
+  Brier score and expected calibration error. No calibrator is fitted in Phase 5.
+- Every experiment is logged with pass/fail against the bar, including failures.
+- Any direction accuracy above ~60% is treated as a leak until proven otherwise.
+
+**Results:** _not run yet._
+
+---
+
 <!-- Add new experiment entries below as phases progress -->
