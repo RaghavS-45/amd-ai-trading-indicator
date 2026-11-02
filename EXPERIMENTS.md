@@ -379,7 +379,8 @@ with direction accuracy below 50% and SEs of 3–15 points: noise. Full curve:
 
 ## Phase 5b – Volatility-scaled features and score signals (2026-11-02)
 
-**Status:** ⏳ Pre-registered. The list below was committed before any run.
+**Status:** ❌ Run 2026-11-02: **no experiment passed the bar.** The list below was committed
+before any run (commit `402bf0f`) and is unchanged.
 
 **Why:** no Phase 5 model passed. Diagnostics were run only on data through 2026-01-06
 (end of fold 5), so folds 6-9 stay unused for design. Script: `src/phase5b_diagnostics.py`,
@@ -445,6 +446,37 @@ zero returns dropped).
 - If none passes, this is logged as a failure and the model choice for Phase 6 goes back to
   the user. The bar is not changed.
 - Any direction accuracy above ~60% is treated as a leak until proven otherwise.
+
+**Results:**
+
+*Confirmation folds 6-9 (2026-01-07 → 06-30), the folds that decide pass/fail:*
+| ID | Sig/day | Dir acc (±SE) | Bar | bps/trade 1x | 1 min late | Folds 6-8 only | bps/trade 3x | P&L 1x | Pass |
+|----|---------|---------------|-----|--------------|------------|----------------|--------------|--------|------|
+| E5.6 (control) | 226.5 | 50.55% (0.57) | 51.72% | +1.19 | +0.84 | +0.26 | −0.22 | +$1,485 | ❌ |
+| E5b.1 Ridge, every score | 347.0 | 50.25% (0.38) | 51.34% | +0.02 | −0.54 | −0.09 | −1.45 | −$262 | ❌ |
+| E5b.2 Ridge, top 20% | 65.9 | 50.27% (0.95) | 52.47% | −0.91 | −2.39 | −1.26 | −2.39 | −$850 | ❌ |
+| E5b.3 Logistic, top 20% | 63.7 | 50.41% (0.91) | 52.39% | −0.11 | −1.21 | −0.91 | −1.56 | +$176 | ❌ |
+| E5b.4 LightGBM, top 20% | 60.3 | 51.19% (1.23) | 53.03% | −1.43 | −2.36 | −1.93 | −2.91 | −$684 | ❌ |
+| E5b.5 Ridge rolling, top 20% | 51.1 | 48.56% (1.04) | 52.66% | −0.69 | −2.14 | −1.62 | −2.09 | −$358 | ❌ |
+| E5b.6 Ridge + LightGBM, top 20% | 63.4 | 51.36% (1.05) | 52.69% | +0.28 | −1.09 | −0.51 | −1.19 | +$336 | ❌ |
+
+*All 9 folds, for comparison with Phase 5:* E5.6 50.67%, +0.89; E5b.1 49.85%, −0.59; E5b.2 50.06%,
+−0.44; E5b.3 50.18%, −0.43; E5b.4 50.00%, −1.04; E5b.5 48.91%, −0.95; E5b.6 50.33%, +0.07.
+Full table: `report/phase5b_summary.csv`; per fold: `report/phase5b_E5b.x_folds.csv`; deciles:
+`report/phase5b_deciles.csv`; log: `report/phase5b_run.log`.
+
+**Conclusions:**
+- The hypothesis held only in part. Scores became closer to monotonic on folds 6-9 (E5b.2:
+  about −0.1 bps in the lowest decile, about +2 bps in the top two), so strength now means
+  something. But that spread is about 2 bps around a positive drift, and it does not pay
+  for a two-sided strategy at about 1.4 bps cost. Most of the "Down" deciles still rose.
+- Nothing beat the control. Only E5b.6 had a positive 1x result, and it turned negative with
+  a one-minute-late entry and without fold 9.
+- The delay test matters for the control too: E5.6 keeps +0.84 bps when entry is one minute
+  late, but is −0.15 on folds 6-8 (`confirm_ex_last`). Its edge still rests on fold 9.
+- 13 experiments across Phases 5 and 5b show no direction skill on one-minute IEX bars and
+  this kind of feature. More tuning on the same inputs would only fit noise, so it should
+  stop here. Any further attempt needs information the model does not have now.
 
 ---
 
