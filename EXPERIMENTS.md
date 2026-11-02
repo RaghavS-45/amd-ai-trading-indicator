@@ -482,7 +482,8 @@ Full table: `report/phase5b_summary.csv`; per fold: `report/phase5b_E5b.x_folds.
 
 ## Phase 5c – News features (2026-11-02)
 
-**Status:** ⏳ Pre-registered. The list below was committed before any run on folds 6-9.
+**Status:** ❌ Run 2026-11-02: **no experiment passed the bar.** The list below was committed
+before any run on folds 6-9 (commit `7a4a7d2`) and is unchanged.
 
 **Why:** suggested by the instructor. News is the first new information since Phase 5, and it
 is free both historically and live (Alpaca News API, articles from Benzinga).
@@ -536,6 +537,41 @@ slower than one bar; the one-minute-late result below tests this only partly.
   E5.6 goes to the user as the Phase 6 choice, with no further round on these inputs.
 - Any direction accuracy above ~60% on a large sample is treated as a leak until proven
   otherwise. E5c.2/E5c.3 have few events, so there it means checking the alignment first.
+
+**Results:**
+
+*Confirmation folds 6-9 (2026-01-07 → 06-30), the folds that decide pass/fail:*
+| ID | Sig/day | Dir acc (±SE) | Bar | Trades | bps/trade 1x | 1 min late | Folds 6-8 only | P&L 1x | Pass |
+|----|---------|---------------|-----|--------|--------------|------------|----------------|--------|------|
+| E5.6 (control) | 226.5 | 50.55% (0.57) | 51.72% | 3,096 | +1.19 | +0.84 | +0.26 | +$1,485 | ❌ |
+| E5c.1 E5.6 + news features | 226.6 | 50.60% (0.58) | 51.73% | 3,094 | +0.72 | +0.21 | +0.01 | +$1,011 | ❌ |
+| E5c.2 Down after news | 0.86 | 41.75% (5.07) | 60.71% | 99 | −6.77 | −3.25 | −1.14 | −$379 | ❌ |
+| E5c.3 Against sentiment | 0.86 | 42.72% (5.01) | 60.60% | 99 | −8.25 | −5.67 | −4.18 | −$373 | ❌ |
+| E5c.4 E5.6, no Up after news | 217.9 | 50.47% (0.60) | 51.77% | 3,048 | +0.78 | +0.42 | +0.37 | +$925 | ❌ |
+
+*Fall after news, by fold (first bar of named articles):* up rate 37.5%, 34.2%, 51.4%, 38.3%,
+46.2% on folds 1-5 and 57.1%, 41.2%, 55.8%, 72.7% on folds 6-9. Folds 6-9 pooled: **57.3%
+(±5.0)**, 103 events, +3.98 bps, against 39.8% (±2.8) in the design data.
+
+Files: `report/phase5c_summary.csv`, `report/phase5c_E5c.1_folds.csv`, `report/phase5c_run.log`.
+
+*Not pre-registered, a check of a different question (does news predict the size of the move?):*
+`news_count_30` vs |10-minute return| IC 0.052 (t 3.0) on folds 1-5 and 0.056 (t 3.1) on
+folds 6-9. Comparing rows within the same day, a named article in the last 30 bars means a move
+2.35 bps (±1.36) larger on folds 1-5 and 5.65 bps (±1.77) larger on folds 6-9.
+
+**Conclusions:**
+- News did not improve direction. Adding news features made the control worse, and removing
+  Up signals after news also lowered bps/trade.
+- The fall after news did not hold: it reversed on the folds not used to find it. It was a
+  chance result from the scan. E5c.2 passes on the design folds (58.76%, +3.98 bps), which
+  shows why those folds cannot be the judge.
+- Sentiment shows no use for direction on any folds, at this coverage and with headlines
+  only. This does not rule out news in general: article text and other sources were not tried.
+- News does seem to help with the size of moves, which held on later folds. This is
+  volatility information, not direction, and it was a post-hoc check. It could be useful as a
+  chart warning ("news in the last 30 minutes: expect larger moves"), not as a signal.
+- After 17 experiments E5.6 remains the best model, and has not passed the bar.
 
 ---
 
