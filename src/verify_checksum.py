@@ -1,6 +1,6 @@
 """
 verify_checksum.py
-Verifies the SHA-256 checksums of the raw data files (asset, context symbols, news).
+Verifies the SHA-256 checksums of the raw data files (asset, context symbols, peers, news).
 Run before any training to confirm the dataset hasn't changed.
 
 Usage:
@@ -51,6 +51,6 @@ def verify_news():
 
 
 if __name__ == "__main__":
-    for sym in [CFG["asset"]] + CFG["context_symbols"]:
+    for sym in dict.fromkeys([CFG["asset"]] + CFG["context_symbols"] + CFG["peer_symbols"]):
         verify(sym)
     verify_news()

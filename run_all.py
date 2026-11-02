@@ -10,6 +10,7 @@ Phases run in order:
   5b. Signal diagnostics and volatility-scaled experiments E5b.1-E5b.6
   5c. News diagnostics and experiments E5c.1-E5c.4 (news is downloaded and scored
       beforehand: src/download_news.py, then src/score_news.py in its own environment)
+  5d. Training pooled over peer stocks, E5d.1-E5d.4 (peers from src/download_peers.py)
   6. Calibrate, pick threshold, run final test eval
   7. Save all report figures to report/
 
@@ -34,6 +35,7 @@ scripts = [
     [ROOT / "src" / "phase5b_models.py", "--all"],
     ROOT / "src" / "phase5c_diagnostics.py",
     [ROOT / "src" / "phase5c_models.py", "--all"],
+    ROOT / "src" / "phase5d_models.py",
     # Phase 6 will be added here when it is built
 ]
 

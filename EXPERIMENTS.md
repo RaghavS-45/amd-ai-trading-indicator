@@ -575,4 +575,45 @@ folds 6-9. Comparing rows within the same day, a named article in the last 30 ba
 
 ---
 
+## Phase 5d – Training pooled over peer stocks (2026-11-02)
+
+**Status:** ⏳ Pre-registered. The list below was committed before any model ran on the pool.
+
+**Why:** every model so far looked for a very small signal in one stock's history. Pooling
+similar stocks gives about 10 times more examples for estimating it. The scaled `norm`
+features make stocks comparable. Live use changes nothing: the model still predicts AMD from
+AMD, QQQ and NVDA bars, all free on IEX.
+
+**Data:** free IEX 1-minute bars, 2024-11-01 → 2026-06-30, for NVDA, AVGO, MU, INTC, QCOM, MRVL,
+TSM, TXN, LRCX, AMAT (liquid large US-listed semiconductor names, chosen before any
+result). `src/download_peers.py`; NVDA's existing raw file is cut at the same date in
+`peers.peer_grid`. A peer with under 80% real bars on the grid is left out. Same flat-fill and
+sparse-day rules as AMD, on AMD's sessions. A peer row uses the QQQ and NVDA bars of its own
+timestamp. No diagnostics were run on peers, so there is no design finding to confirm.
+
+**Experiments (same models and fixed parameters as Phase 5b; only the training rows change):**
+| ID | Model | Signal | Same model on AMD alone |
+|----|-------|--------|-------------------------|
+| E5d.1 | Ridge | sign of every score | E5b.1 |
+| E5d.2 | Ridge | strongest 20% | E5b.2 |
+| E5d.3 | LightGBM regression | strongest 20% | E5b.4 |
+| E5d.4 | Ridge + LightGBM | strongest 20% | E5b.6 |
+
+**Rules decided in advance:**
+- Training and the inner holdout's model fit use all symbols; the score cutoff and every
+  validation number use **AMD rows only**. Same days, gap, costs and metrics as Phase 5b.
+- **Pass:** the unchanged bar on **folds 6-9**. E5.6 is the control. Also reported: all folds,
+  design folds, folds 6-8, and entry one minute late. A positive result that disappears when
+  one minute late does not count as an improvement.
+- No parameter is changed for the larger data, including ridge alpha and LightGBM's leaf size,
+  so the only change is the data. A failure here says nothing about other parameters, and they
+  are not tried afterwards.
+- Stocks move together, so the pool holds fewer independent examples than its row count. This
+  affects training only; the SEs come from AMD rows clustered by day.
+- 21 experiments in total after this round. If none passes, it is logged as a failure and E5.6
+  goes to the user as the Phase 6 choice. The bar is not changed.
+- Any direction accuracy above ~60% is treated as a leak until proven otherwise.
+
+---
+
 <!-- Add new experiment entries below as phases progress -->

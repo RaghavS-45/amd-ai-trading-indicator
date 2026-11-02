@@ -76,6 +76,11 @@ news_named_pattern: '\bamd\b|advanced micro'
 finbert_model: "ProsusAI/finbert"
 finbert_revision: "0bc2ac10dda6929bcb1f77ccc43c7ec5c424f031"
 
+# ── Pooled peers (Phase 5d) ────────────────────────────────────────
+peer_symbols: [NVDA, AVGO, MU, INTC, QCOM, MRVL, TSM, TXN, LRCX, AMAT]
+peers_end: "2026-07-01"        # exclusive; peers are train-period data only
+peer_min_coverage: 0.80        # peers with fewer real bars on the grid are left out
+
 # ── Model ──────────────────────────────────────────────────────────
 random_seed: 42
 lgbm_n_estimators: 500
