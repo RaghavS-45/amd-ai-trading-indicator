@@ -669,8 +669,9 @@ SIP up rate on the same rows: 50.50%. The small bps differences from the table a
 
 ## Phase 5e – Fresh years and the final research round (2026-11-02)
 
-**Status:** ⏳ Pre-registered. The list below was committed before any model ran on these years
-or these feature sets. Approved by the user as the last batch before Phase 6.
+**Status:** ❌ Run 2026-11-02: **E5.6 failed on the fresh years, and no final-round model passed
+on any period.** The list below was committed before any model ran on these years or feature
+sets (commit `0c868c6`) and is unchanged. Approved by the user as the last batch before Phase 6.
 
 **Why:** folds 6-9 have now judged 21 experiments, so they are no longer a clean check, and Phase
 5d showed IEX closes can overstate results. Data before 2024-11 has not influenced any design
@@ -718,6 +719,52 @@ ending 2026-06-30; the last blocks fall on the same dates as folds 6-9.
   (Bailey & López de Prado 2014) goes in the report as a further adjustment, not a pass rule.
 - Research stops after this round, whatever the outcome. Then Phase 6.
 - Any direction accuracy above ~60% is treated as a leak until proven otherwise.
+
+**Results:**
+
+*Setup:* 465,244 rows, 1,346 days, 2021-02-17 → 2026-06-30 (the first weeks are seasonal warm-up;
+E5.6 loses them too). AMD filled 2.24%. Filled bars: SPY 1.46%, QQQ 7.81%, NVDA 4.09%, TSM 9.04%,
+**AVGO 32.99%**, which is thin in the older years; this weakens E5e.3's AVGO inputs but no rule
+set in advance excluded it. Final round: 28 folds, validation 2023-02-21 → 2026-06-30; folds
+25-28 are the 2026-01-07 → 06-30 period of folds 6-9.
+
+*Step 1: E5.6, unchanged, fresh years 2023-03-03 → 2024-10-31 (14 folds, 420 days):*
+| Scoring | Sig/day | Dir acc (±SE) | Base rate | Bar | bps/trade 1x | bps/trade 3x | Pass |
+|---------|---------|---------------|-----------|-----|--------------|--------------|------|
+| Strict (SIP, next open) | 206.4 | 50.35% (0.30) | 51.04% | 51.64% | −1.32 | −4.46 | ❌ |
+| IEX closes | 206.4 | 50.73% (0.30) | 50.91% | 51.51% | −0.92 | −4.06 | ❌ |
+| Strict, first half of folds | 205.2 | 50.15% (0.44) | 51.09% | 51.98% | −1.49 | −5.28 | ❌ |
+| Strict, second half of folds | 207.5 | 50.55% (0.41) | 50.99% | 51.81% | −1.15 | −3.64 | ❌ |
+
+*Step 2: final round, strict scoring:*
+| ID | Period | Sig/day | Dir acc (±SE) | Base rate | Bar | bps/trade 1x | Pass |
+|----|--------|---------|---------------|-----------|-----|--------------|------|
+| E5e.1 baseline | Fresh | 67.0 | 50.33% (0.64) | 51.03% | 52.31% | −1.47 | ❌ |
+| | Folds 6-9 | 63.6 | 48.13% (1.06) | 50.62% | 52.75% | −2.75 | ❌ |
+| E5e.2 same half hour | Fresh | 67.3 | 50.16% (0.65) | 51.03% | 52.32% | −1.20 | ❌ |
+| | Folds 6-9 | 67.0 | 48.48% (1.06) | 50.62% | 52.75% | −2.54 | ❌ |
+| E5e.3 chip stocks | Fresh | 66.5 | 49.89% (0.63) | 51.03% | 52.30% | −1.40 | ❌ |
+| | Folds 6-9 | 63.0 | 48.52% (1.08) | 50.62% | 52.79% | −1.48 | ❌ |
+| E5e.4 last half hour | Fresh | 66.8 | 50.42% (0.64) | 51.03% | 52.31% | −1.50 | ❌ |
+| | Folds 6-9 | 66.4 | 48.15% (1.12) | 50.62% | 52.87% | −1.89 | ❌ |
+
+Across all 28 folds the correlation between score and tradable return is −0.0003 to −0.0022, and
+signals average about −0.1 bps before costs. At most 4 of 28 folds had positive 1x bps/trade.
+Files: `report/phase5e_summary.csv`, `report/phase5e_fresh.csv`, `report/phase5e_fresh_run.log`,
+`report/phase5e_final_run.log`.
+
+**Conclusions:**
+- E5.6's edge was not real. On years it had not seen, it is below the base rate and loses money,
+  so the positive numbers on the later folds were mostly chance, as fold 9 suggested. Before costs it
+  is about +0.5 bps/trade at about 1.8 bps cost; that gross figure is approximate and post hoc.
+- None of the three literature ideas added anything measurable at 10 minutes on free 1-minute data.
+  The tradable target and longer history did not help. The earlier IEX-close passes disappear
+  when the target itself cannot reward the IEX artifact, which fits the Phase 5d explanation.
+- These tests covered more than three years and 25 models, and they do not show that no edge can
+  exist. They show no edge these free inputs can find at this horizon, in line with the literature
+  (predictability reported at seconds and fading within minutes in liquid stocks).
+- By the rule set in advance, research stops here and the Phase 6 choice goes to the user, with no
+  evidence of an edge to report.
 
 ---
 

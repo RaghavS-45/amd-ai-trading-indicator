@@ -1,0 +1,64 @@
+AMD grid 534,840 rows, sparse days dropped 3, filled 2.24%
+SPY   filled 1.46%
+QQQ   filled 7.81%
+NVDA  filled 4.09%
+AVGO  filled 32.99%
+TSM   filled 9.04%
+Rows 465,244, days 1346, 2021-02-17 to 2026-06-30, no SIP target 0.00%
+Final round: 28 folds, validation 2023-02-21 to 2026-06-30
+E5e.1 done, 15 features: ['z_ret_1', 'z_ret_5', 'z_ret_10', 'z_ret_30', 'z_qqq_ret_1', 'z_qqq_ret_10', 'z_nvda_ret_1', 'z_nvda_ret_10', 'z_vwap', 'z_open', 'vol_surprise_clip', 'clv_10', 'log_vol', 'norm_tod_sin', 'norm_tod_cos']
+
+                               rows  days  signals_per_day  up_share  base_rate  dir_acc  dir_se_day  dir_bar  trades  bps_1x  bps_3x   pass
+experiment scope                                                                                                                           
+E5e.1      fresh            147976   428          67.0000    0.5429     0.5103   0.5033      0.0064   0.5231    6257 -1.4747 -4.6133  False
+           confirm           41640   120          63.6167    0.4004     0.5062   0.4813      0.0106   0.5275    2022 -2.7483 -4.2016  False
+           confirm_ex_last   31230    90          66.2667    0.3835     0.5027   0.4774      0.0122   0.5271    1554 -3.4853 -5.1337  False
+           between          100424   292          66.2842    0.5267     0.4983   0.4909      0.0072   0.5127    4590 -1.6384 -4.5293  False
+E5e.2 done, 16 features: ['z_ret_1', 'z_ret_5', 'z_ret_10', 'z_ret_30', 'z_qqq_ret_1', 'z_qqq_ret_10', 'z_nvda_ret_1', 'z_nvda_ret_10', 'z_vwap', 'z_open', 'vol_surprise_clip', 'clv_10', 'log_vol', 'norm_tod_sin', 'norm_tod_cos', 'z_seas']
+
+                               rows  days  signals_per_day  up_share  base_rate  dir_acc  dir_se_day  dir_bar  trades  bps_1x  bps_3x   pass
+experiment scope                                                                                                                           
+E5e.1      fresh            147976   428          67.0000    0.5429     0.5103   0.5033      0.0064   0.5231    6257 -1.4747 -4.6133  False
+           confirm           41640   120          63.6167    0.4004     0.5062   0.4813      0.0106   0.5275    2022 -2.7483 -4.2016  False
+           confirm_ex_last   31230    90          66.2667    0.3835     0.5027   0.4774      0.0122   0.5271    1554 -3.4853 -5.1337  False
+           between          100424   292          66.2842    0.5267     0.4983   0.4909      0.0072   0.5127    4590 -1.6384 -4.5293  False
+E5e.2      fresh            147976   428          67.2664    0.5617     0.5103   0.5016      0.0065   0.5232    6216 -1.2026 -4.3432  False
+           confirm           41640   120          67.0417    0.3974     0.5062   0.4848      0.0106   0.5275    2003 -2.5356 -3.9898  False
+           confirm_ex_last   31230    90          70.1333    0.4165     0.5027   0.4829      0.0125   0.5277    1552 -3.5696 -5.2124  False
+           between          100424   292          66.1473    0.5363     0.4983   0.4937      0.0074   0.5131    4461 -1.5762 -4.4702  False
+E5e.3 done, 21 features: ['z_ret_1', 'z_ret_5', 'z_ret_10', 'z_ret_30', 'z_qqq_ret_1', 'z_qqq_ret_10', 'z_nvda_ret_1', 'z_nvda_ret_10', 'z_vwap', 'z_open', 'vol_surprise_clip', 'clv_10', 'log_vol', 'norm_tod_sin', 'norm_tod_cos', 'z_avgo_ret_1', 'z_avgo_ret_10', 'z_tsm_ret_1', 'z_tsm_ret_10', 'z_basket_ret_1', 'z_basket_ret_5']
+
+                               rows  days  signals_per_day  up_share  base_rate  dir_acc  dir_se_day  dir_bar  trades  bps_1x  bps_3x   pass
+experiment scope                                                                                                                           
+E5e.1      fresh            147976   428          67.0000    0.5429     0.5103   0.5033      0.0064   0.5231    6257 -1.4747 -4.6133  False
+           confirm           41640   120          63.6167    0.4004     0.5062   0.4813      0.0106   0.5275    2022 -2.7483 -4.2016  False
+           confirm_ex_last   31230    90          66.2667    0.3835     0.5027   0.4774      0.0122   0.5271    1554 -3.4853 -5.1337  False
+           between          100424   292          66.2842    0.5267     0.4983   0.4909      0.0072   0.5127    4590 -1.6384 -4.5293  False
+E5e.2      fresh            147976   428          67.2664    0.5617     0.5103   0.5016      0.0065   0.5232    6216 -1.2026 -4.3432  False
+           confirm           41640   120          67.0417    0.3974     0.5062   0.4848      0.0106   0.5275    2003 -2.5356 -3.9898  False
+           confirm_ex_last   31230    90          70.1333    0.4165     0.5027   0.4829      0.0125   0.5277    1552 -3.5696 -5.2124  False
+           between          100424   292          66.1473    0.5363     0.4983   0.4937      0.0074   0.5131    4461 -1.5762 -4.4702  False
+E5e.3      fresh            147976   428          66.5397    0.5383     0.5103   0.4989      0.0063   0.5230    6451 -1.4033 -4.5563  False
+           confirm           41640   120          62.9500    0.3952     0.5062   0.4852      0.0108   0.5279    1997 -1.4837 -2.9331  False
+           confirm_ex_last   31230    90          66.0556    0.3835     0.5027   0.4809      0.0120   0.5267    1540 -1.8026 -3.4440  False
+           between          100424   292          67.7842    0.5202     0.4983   0.4925      0.0068   0.5119    4754 -1.2949 -4.1870  False
+E5e.4 done, 17 features: ['z_ret_1', 'z_ret_5', 'z_ret_10', 'z_ret_30', 'z_qqq_ret_1', 'z_qqq_ret_10', 'z_nvda_ret_1', 'z_nvda_ret_10', 'z_vwap', 'z_open', 'vol_surprise_clip', 'clv_10', 'log_vol', 'norm_tod_sin', 'norm_tod_cos', 'fh_amd', 'fh_qqq']
+
+                               rows  days  signals_per_day  up_share  base_rate  dir_acc  dir_se_day  dir_bar  trades  bps_1x  bps_3x   pass
+experiment scope                                                                                                                           
+E5e.1      fresh            147976   428          67.0000    0.5429     0.5103   0.5033      0.0064   0.5231    6257 -1.4747 -4.6133  False
+           confirm           41640   120          63.6167    0.4004     0.5062   0.4813      0.0106   0.5275    2022 -2.7483 -4.2016  False
+           confirm_ex_last   31230    90          66.2667    0.3835     0.5027   0.4774      0.0122   0.5271    1554 -3.4853 -5.1337  False
+           between          100424   292          66.2842    0.5267     0.4983   0.4909      0.0072   0.5127    4590 -1.6384 -4.5293  False
+E5e.2      fresh            147976   428          67.2664    0.5617     0.5103   0.5016      0.0065   0.5232    6216 -1.2026 -4.3432  False
+           confirm           41640   120          67.0417    0.3974     0.5062   0.4848      0.0106   0.5275    2003 -2.5356 -3.9898  False
+           confirm_ex_last   31230    90          70.1333    0.4165     0.5027   0.4829      0.0125   0.5277    1552 -3.5696 -5.2124  False
+           between          100424   292          66.1473    0.5363     0.4983   0.4937      0.0074   0.5131    4461 -1.5762 -4.4702  False
+E5e.3      fresh            147976   428          66.5397    0.5383     0.5103   0.4989      0.0063   0.5230    6451 -1.4033 -4.5563  False
+           confirm           41640   120          62.9500    0.3952     0.5062   0.4852      0.0108   0.5279    1997 -1.4837 -2.9331  False
+           confirm_ex_last   31230    90          66.0556    0.3835     0.5027   0.4809      0.0120   0.5267    1540 -1.8026 -3.4440  False
+           between          100424   292          67.7842    0.5202     0.4983   0.4925      0.0068   0.5119    4754 -1.2949 -4.1870  False
+E5e.4      fresh            147976   428          66.7547    0.6055     0.5103   0.5042      0.0064   0.5231    5706 -1.5014 -4.6257  False
+           confirm           41640   120          66.4083    0.4373     0.5062   0.4815      0.0112   0.5287    1804 -1.8856 -3.3233  False
+           confirm_ex_last   31230    90          66.9222    0.4365     0.5027   0.4828      0.0131   0.5289    1362 -2.3866 -4.0292  False
+           between          100424   292          66.7158    0.5702     0.4983   0.4954      0.0073   0.5129    4059 -1.7604 -4.6603  False

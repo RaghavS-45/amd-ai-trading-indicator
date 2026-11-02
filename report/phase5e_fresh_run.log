@@ -1,0 +1,29 @@
+AMD grid 534,840 rows, sparse days dropped 3, filled 2.24%
+SPY   filled 1.46%
+QQQ   filled 7.81%
+NVDA  filled 4.09%
+AVGO  filled 32.99%
+TSM   filled 9.04%
+Rows 465,244, days 1346, 2021-02-17 to 2026-06-30, no SIP target 0.00%
+Fresh check: 14 folds, validation 2023-03-03 to 2024-10-31, 32 features
+fold 1 2023-03-03 to 2023-04-14
+fold 2 2023-04-17 to 2023-05-26
+fold 3 2023-05-30 to 2023-07-12
+fold 4 2023-07-13 to 2023-08-23
+fold 5 2023-08-24 to 2023-10-05
+fold 6 2023-10-06 to 2023-11-16
+fold 7 2023-11-17 to 2024-01-02
+fold 8 2024-01-03 to 2024-02-14
+fold 9 2024-02-15 to 2024-03-28
+fold 10 2024-04-01 to 2024-05-10
+fold 11 2024-05-13 to 2024-06-25
+fold 12 2024-06-26 to 2024-08-07
+fold 13 2024-08-08 to 2024-09-19
+fold 14 2024-09-20 to 2024-10-31
+
+                               rows  days  signals_per_day  up_share  base_rate  dir_acc  dir_se_day  dir_bar  trades  bps_1x  bps_3x   pass
+experiment scope                                                                                                                           
+E5.6       fresh_tradable   145200   420         206.3881    0.5811     0.5104   0.5035      0.0030   0.5164    9801 -1.3195 -4.4556  False
+           fresh_iex_close  145200   420         206.3881    0.5811     0.5091   0.5073      0.0030   0.5151    9801 -0.9239 -4.0600  False
+           first_half        72510   210         205.2429    0.5494     0.5109   0.5015      0.0044   0.5198    4890 -1.4862 -5.2790  False
+           second_half       72690   210         207.5333    0.6125     0.5099   0.5055      0.0041   0.5181    4911 -1.1535 -3.6357  False
