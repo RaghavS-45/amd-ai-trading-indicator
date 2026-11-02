@@ -577,7 +577,10 @@ folds 6-9. Comparing rows within the same day, a named article in the last 30 ba
 
 ## Phase 5d – Training pooled over peer stocks (2026-11-02)
 
-**Status:** ⏳ Pre-registered. The list below was committed before any model ran on the pool.
+**Status:** ⚠️ Run 2026-11-02: **E5d.3 and E5d.4 clear the bar on folds 6-9 but are rejected.**
+They fail the pre-registered one-minute-late rule, and the follow-up checks show the edge is
+not tradable. The list below was committed before any model ran on the pool (commit `7cea4d0`)
+and is unchanged.
 
 **Why:** every model so far looked for a very small signal in one stock's history. Pooling
 similar stocks gives about 10 times more examples for estimating it. The scaled `norm`
@@ -613,6 +616,54 @@ timestamp. No diagnostics were run on peers, so there is no design finding to co
 - 21 experiments in total after this round. If none passes, it is logged as a failure and E5.6
   goes to the user as the Phase 6 choice. The bar is not changed.
 - Any direction accuracy above ~60% is treated as a leak until proven otherwise.
+
+**Results:**
+
+*Setup:* TXN was left out by the 80% rule (78.4% real bars). Pool 1,417,350 rows, 10 symbols
+including AMD; AMD rows unchanged at 142,064.
+
+*Confirmation folds 6-9, the folds that decide the bar:*
+| ID | Sig/day | Dir acc (±SE) | Bar | Bar met | bps/trade 1x | 1 min late | Folds 6-8 only | bps/trade 3x | P&L 1x |
+|----|---------|---------------|-----|---------|--------------|------------|----------------|--------------|--------|
+| E5.6 (control) | 226.5 | 50.55% (0.57) | 51.72% | ❌ | +1.19 | +0.84 | +0.26 | −0.22 | +$1,485 |
+| E5d.1 Ridge, every score | 347.0 | 50.66% (0.30) | 51.18% | ❌ | +0.92 | −0.08 | +0.87 | −0.54 | +$1,379 |
+| E5d.2 Ridge, top 20% | 67.1 | 51.74% (0.71) | 52.00% | ❌ | +0.67 | −1.54 | −0.37 | −0.80 | +$1,022 |
+| E5d.3 LightGBM, top 20% | 63.5 | **53.33% (0.92)** | 52.42% | ✅ | +1.09 | **−1.05** | +0.09 | −0.38 | +$984 |
+| E5d.4 Ridge + LightGBM, top 20% | 65.9 | **52.56% (0.77)** | 52.13% | ✅ | +1.76 | **−0.85** | +1.32 | +0.30 | +$1,589 |
+
+All 9 folds: E5d.3 51.51% against a bar of 51.55%; E5d.4 51.23% against 51.38%. Design folds 1-5:
+E5d.3 50.06%, −0.47 bps; E5d.4 50.18%, −0.68 bps. Compared with the same models on AMD alone
+(E5b.4 51.19%, E5b.6 51.36% on folds 6-9), pooling did raise IEX-measured accuracy.
+
+*Rejected under the pre-registered rule:* "A positive result that disappears when one minute
+late does not count as an improvement." Both turn negative.
+
+*Follow-up checks, not pre-registered (`src/phase5d_checks.py`, `report/phase5d_checks.csv`):*
+the same signals on folds 6-9, re-priced. SIP is the full-market feed, used only for checking.
+| Model | Dir acc on IEX | Dir acc on SIP (±SE) | bps: close t (as run) | bps: IEX open t+1 | bps: SIP close t | bps: SIP open t+1 |
+|-------|----------------|----------------------|-----------------------|-------------------|------------------|-------------------|
+| E5.6 | 50.55% | 50.05% (0.59) | +1.19 | +0.93 | +0.85 | +0.88 |
+| E5d.3 | 53.33% | 51.20% (0.92) | +1.11 | −1.16 | −1.38 | −1.37 |
+| E5d.4 | 52.56% | 50.03% (0.74) | +1.78 | −0.63 | −0.68 | −0.69 |
+
+SIP up rate on the same rows: 50.50%. The small bps differences from the table above (at most
+0.02) come from this script using log returns instead of the simulator's price P&L.
+
+**Conclusions:**
+- The passes are an artifact of IEX prices, not a tradable edge. IEX's last print in a minute can
+  differ from the market price (mean 2.3 bps, Phase 5b sample). The pooled models seem to learn
+  when it is off, and it corrects within about a minute. That earns "accuracy" on IEX closes, but
+  entering at the next open or scoring on SIP removes it. Entry at the signal bar's own IEX close
+  is not available in live trading, since that minute has already ended.
+- This explanation fits the numbers but was not tested directly, for example by ablating
+  `z_ret_1`. Whatever the mechanism, the tradability result stands.
+- **Lesson for Phases 6-8:** IEX-close evaluation can overstate results. Phase 6 and the live
+  scorecard must also report entry at the next bar's open, and SIP-scored direction where the
+  data is old enough. The earlier 1-minute-late rule existed for this and did its job.
+- E5.6 survives these checks on bps (+0.93 at next open, +0.85 on SIP), but not on direction
+  (50.05% on SIP, up rate 50.50%), and falls to about zero without fold 9. It has a small
+  possible cost-adjusted edge and no direction skill shown.
+- After 21 experiments, no model has a tradable direction edge on these free inputs.
 
 ---
 

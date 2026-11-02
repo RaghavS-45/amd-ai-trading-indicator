@@ -80,6 +80,7 @@ finbert_revision: "0bc2ac10dda6929bcb1f77ccc43c7ec5c424f031"
 peer_symbols: [NVDA, AVGO, MU, INTC, QCOM, MRVL, TSM, TXN, LRCX, AMAT]
 peers_end: "2026-07-01"        # exclusive; peers are train-period data only
 peer_min_coverage: 0.80        # peers with fewer real bars on the grid are left out
+sip_check_path: "data/amd_1min_sip_check.parquet"   # train period; checks only, never a model input
 
 # ── Model ──────────────────────────────────────────────────────────
 random_seed: 42

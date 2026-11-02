@@ -36,6 +36,7 @@ scripts = [
     ROOT / "src" / "phase5c_diagnostics.py",
     [ROOT / "src" / "phase5c_models.py", "--all"],
     ROOT / "src" / "phase5d_models.py",
+    ROOT / "src" / "phase5d_checks.py",
     # Phase 6 will be added here when it is built
 ]
 
