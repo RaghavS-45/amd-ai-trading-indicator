@@ -44,7 +44,7 @@ def _make_fake_ohlcv(n: int) -> pd.DataFrame:
     return df
 
 
-ALL_SETS = [["base"], ["context"], ["intraday"], ["base", "context", "intraday"]]
+ALL_SETS = [["base"], ["context"], ["intraday"], ["norm"], ["base", "context", "intraday", "norm"]]
 
 
 @pytest.mark.parametrize("sets", ALL_SETS)

@@ -27,3 +27,7 @@ Libraries are added here when they are first used in code.
 - Ke, G., Meng, Q., Finley, T., Wang, T., Chen, W., Ma, W., Ye, Q., & Liu, T.-Y. (2017).
   LightGBM: A Highly Efficient Gradient Boosting Decision Tree. *Advances in Neural
   Information Processing Systems 30* (NeurIPS 2017).
+- Nickell, S. (1981). Biases in Dynamic Models with Fixed Effects. *Econometrica*, 49(6),
+  1417-1426. (Why within-day correlations of price level with later returns are biased.)
+- Roll, R. (1984). A Simple Implicit Measure of the Effective Bid-Ask Spread in an Efficient
+  Market. *The Journal of Finance*, 39(4), 1127-1139. (Bid-ask bounce and 1-bar reversal.)

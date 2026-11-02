@@ -16,6 +16,9 @@ Feature sets (config feature_sets, or the sets argument):
   context  – returns of the context symbols (grid columns <sym>_close), bar t only
   intraday – VWAP / open distance, volume and trade-count surprise, minutes since
              open / to close
+  norm     – returns and distances scaled by rolling volatility and clipped at
+             +-norm_clip, close location, clipped volume surprise, log volatility,
+             time of day
 """
 
 from pathlib import Path
@@ -32,7 +35,7 @@ ROOT = Path(__file__).parent.parent
 CFG = yaml.safe_load((ROOT / "config.yaml").read_text())
 
 
-FEATURE_SETS = ("base", "context", "intraday")
+FEATURE_SETS = ("base", "context", "intraday", "norm")
 _CAL = None
 
 
@@ -60,7 +63,7 @@ def compute_features(df: pd.DataFrame, sets: Optional[Sequence[str]] = None) -> 
 
 
 def _session_features(df: pd.DataFrame, sets: Sequence[str]) -> pd.DataFrame:
-    builders = {"base": _base, "context": _context, "intraday": _intraday}
+    builders = {"base": _base, "context": _context, "intraday": _intraday, "norm": _norm}
     return pd.concat([builders[s](df) for s in sets], axis=1)
 
 
@@ -140,6 +143,43 @@ def _intraday(df: pd.DataFrame) -> pd.DataFrame:
     close_utc = _session_close(df.index[0])
     bar_end = df.index + pd.Timedelta(minutes=1)
     feat["min_to_close"] = (close_utc - bar_end) / pd.Timedelta(minutes=1)
+    return feat
+
+
+def _scaled(ret: pd.Series, vol: pd.Series, bars: int) -> pd.Series:
+    """ret / (vol * sqrt(bars)), clipped; a flat window (vol 0) gives 0."""
+    z = ret / (vol.where(vol > 0) * np.sqrt(bars))
+    return z.mask((vol == 0) & ret.notna(), 0.0).clip(-CFG["norm_clip"], CFG["norm_clip"])
+
+
+def _norm(df: pd.DataFrame) -> pd.DataFrame:
+    feat = pd.DataFrame(index=df.index)
+    w = CFG["vol_window"]
+    vol = np.log(df["close"] / df["close"].shift(1)).rolling(w).std()
+
+    for lag in CFG["norm_return_lags"]:
+        feat[f"z_ret_{lag}"] = _scaled(np.log(df["close"] / df["close"].shift(lag)), vol, lag)
+
+    for sym in CFG["norm_context_symbols"]:
+        s = sym.lower()
+        close = df[f"{s}_close"]
+        sym_vol = np.log(close / close.shift(1)).rolling(w).std()
+        for lag in CFG["norm_context_lags"]:
+            feat[f"z_{s}_ret_{lag}"] = _scaled(np.log(close / close.shift(lag)), sym_vol, lag)
+
+    intraday = _intraday(df)
+    feat["z_vwap"] = _scaled(intraday["vwap_dist"], vol, CFG["norm_level_bars"])
+    feat["z_open"] = _scaled(intraday["open_dist"], vol, CFG["norm_level_bars"])
+    feat["vol_surprise_clip"] = intraday["vol_surprise"].clip(-CFG["norm_clip"], CFG["norm_clip"])
+
+    # Filled bars have high == low: close location 0
+    location = (2 * df["close"] - df["high"] - df["low"]) / (df["high"] - df["low"]).replace(0, np.nan)
+    feat["clv_10"] = location.fillna(0.0).rolling(10).mean()
+
+    feat["log_vol"] = np.log(vol.where(vol > 0, 1e-6))
+    angle = 2 * np.pi * minutes_since_open(df.index) / 390
+    feat["norm_tod_sin"] = np.sin(angle)
+    feat["norm_tod_cos"] = np.cos(angle)
     return feat
 
 

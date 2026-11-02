@@ -7,6 +7,7 @@ Phases run in order:
   3. Build features + labels (saves to disk)
   4. Baselines + logistic regression, walk-forward on the train period
   5. Phase 5 experiments E5.1-E5.7 (LightGBM, context/intraday features, threshold)
+  5b. Signal diagnostics and volatility-scaled experiments E5b.1-E5b.6
   6. Calibrate, pick threshold, run final test eval
   7. Save all report figures to report/
 
@@ -27,6 +28,8 @@ scripts = [
     ROOT / "src" / "build_grid.py",
     ROOT / "src" / "phase4_baselines.py",
     [ROOT / "src" / "phase5_models.py", "--all"],
+    ROOT / "src" / "phase5b_diagnostics.py",
+    [ROOT / "src" / "phase5b_models.py", "--all"],
     # Phase 6 will be added here when it is built
 ]
 

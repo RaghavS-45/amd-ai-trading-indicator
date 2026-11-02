@@ -50,6 +50,21 @@ macd_signal: 9
 bb_window: 20
 bb_std: 2.0
 
+# ── Volatility-scaled feature set (Phase 5b) ───────────────────────
+norm_clip: 4.0
+norm_return_lags: [1, 5, 10, 30]
+norm_context_symbols: [QQQ, NVDA]
+norm_context_lags: [1, 10]
+norm_level_bars: 30            # VWAP / open distance scaled like a 30-bar return
+
+# ── Phase 5b experiments ───────────────────────────────────────────
+explore_end: "2026-01-06"      # end of fold 5: design data; folds 6-9 confirm
+confirm_from_fold: 6
+signal_share: 0.20             # share of rows with the strongest scores that fire
+inner_holdout_days: 30         # last train days, sets the score cutoff for a fold
+rolling_train_days: 120
+ridge_alpha: 1000.0
+
 # ── Model ──────────────────────────────────────────────────────────
 random_seed: 42
 lgbm_n_estimators: 500

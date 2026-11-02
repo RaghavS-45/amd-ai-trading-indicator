@@ -377,4 +377,75 @@ with direction accuracy below 50% and SEs of 3–15 points: noise. Full curve:
 
 ---
 
+## Phase 5b – Volatility-scaled features and score signals (2026-11-02)
+
+**Status:** ⏳ Pre-registered. The list below was committed before any run.
+
+**Why:** no Phase 5 model passed. Diagnostics were run only on data through 2026-01-06
+(end of fold 5), so folds 6-9 stay unused for design. Script: `src/phase5b_diagnostics.py`,
+output `report/phase5b_ic.csv`, `report/phase5b_e56_deciles.csv`.
+
+**Diagnostics (design data, 100,424 rows):**
+- *A mistake caught:* the first version averaged within-day rank correlations and showed
+  `open_dist` at −0.32, negative on 99% of days. Used as a rule, the same feature gets about
+  49%. This is a known bias (Nickell 1981): within a day, a price level and its later
+  returns are mechanically related. Replaced by pooled correlation with day-clustered SEs,
+  which gives `open_dist` −0.005 (t −0.5). The biased column is kept in the CSV as a warning.
+- Pooled: 4 of 48 candidates reach |t| > 2, against about 2.4 expected by chance (the script
+  now also lists the scaled `norm` versions, which are near-copies: 5 of 57). Largest:
+  AMD 1-minute reversal `ret_1` −0.011 (t −3.4), `nvda_ret_1` +0.009 (t 2.8). Both are small.
+  The reversal may be bid-ask bounce (Roll 1984), which cannot be earned; hence the delay
+  test below.
+- Rejected, no evidence: overnight gap, previous-day return, 60/120-minute returns, signed
+  volume, QQQ-residual returns, share of filled bars.
+- E5.6 by score decile (folds 1-5): not monotonic. The strongest Up decile earned −0.91 bps
+  and deciles 6-8 earned +0.19 to +0.91, while the strongest Down decile was right (−2.35 bps,
+so the problem is one-sided). This matches Phase 5's overconfident tail. Likely
+  cause (a hypothesis): unscaled returns and outliers such as `vol_surprise` −27 drive the
+  extreme scores.
+- At AMD's median price ($139) the 1x round-trip cost is about 1.4 bps; the mean absolute
+  10-minute move is 22.9 bps.
+
+**Hypothesis:** scaling and clipping the inputs, and predicting a continuous scaled return,
+makes score strength meaningful, so the strongest scores can pay for costs.
+
+**Fixed:** same rows, folds, costs and `evaluate_signals` as Phase 5. Hold-out test not loaded.
+
+**New `norm` feature set (15):** `z_ret_{1,5,10,30}`, `z_qqq_ret_{1,10}`, `z_nvda_ret_{1,10}`,
+`z_vwap`, `z_open` (scaled by the 20-bar volatility x sqrt(bars), clipped at ±4),
+`vol_surprise_clip`, `clv_10`, `log_vol`, `norm_tod_sin`, `norm_tod_cos`.
+
+**Target:** `fwd_ret / (volatility x sqrt(10))`, clipped at ±4 (E5b.3: sign of `fwd_ret`,
+zero returns dropped).
+
+**Experiments:**
+| ID | Model | Signal |
+|----|-------|--------|
+| E5b.1 | Ridge (alpha 1000), expanding window | sign of every score |
+| E5b.2 | Ridge, expanding | strongest 20% of scores |
+| E5b.3 | Logistic on sign, expanding | strongest 20% |
+| E5b.4 | LightGBM regression (200 trees, lr 0.02, 7 leaves, min_child_samples 2000, feature and bagging fraction 0.7, L2 10) | strongest 20% |
+| E5b.5 | Ridge, rolling last 120 training days | strongest 20% |
+| E5b.6 | Ridge + LightGBM, scores averaged after scaling | strongest 20% |
+
+**Rules decided in advance:**
+- No hyperparameter search. Values above are fixed.
+- The 20% cutoff for a fold comes from an inner holdout (last 30 training days; fit on the
+  rest, take the |score| quantile). The model is then refit on all training days.
+- **Pass:** the unchanged Phase 5 bar (direction accuracy >= base rate + 2 x day-clustered
+  SE, and mean 1x bps/trade > 0), judged on **confirmation folds 6-9** only. E5.6 is the
+  control on the same rows. Design folds and all folds are reported too.
+- Also reported: folds 6-8 alone (fold 9 drove Phase 5's positive result), deciles of the
+  score on folds 6-9, and 1x bps/trade with entry one minute late (close t+1). If the edge
+  disappears with that delay, it is not tradable and the model does not count as improved,
+  even if it passes.
+- Folds 6-9 were visible in Phase 5's aggregate tables, so they are not fully virgin; this
+  round's design used no analysis of them. With 13 experiments over Phases 5 and 5b, one
+  pass could be luck. The hold-out test is the real check.
+- If none passes, this is logged as a failure and the model choice for Phase 6 goes back to
+  the user. The bar is not changed.
+- Any direction accuracy above ~60% is treated as a leak until proven otherwise.
+
+---
+
 <!-- Add new experiment entries below as phases progress -->
