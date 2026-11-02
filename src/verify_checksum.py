@@ -1,6 +1,6 @@
 """
 verify_checksum.py
-Verifies the SHA-256 checksums of the raw data files (asset + context symbols).
+Verifies the SHA-256 checksums of the raw data files (asset, context symbols, news).
 Run before any training to confirm the dataset hasn't changed.
 
 Usage:
@@ -40,6 +40,17 @@ def verify(symbol: str):
         )
 
 
+def verify_news():
+    for key in ("news_raw_path", "news_scored_path"):
+        data_path = ROOT / CFG[key]
+        stored = (ROOT / CFG["news_checksum_template"].format(name=data_path.stem)).read_text().strip()
+        actual = hashlib.sha256(data_path.read_bytes()).hexdigest()
+        if stored != actual:
+            sys.exit(f"✗  {data_path.name} CHECKSUM MISMATCH! Re-download or investigate.")
+        print(f"✓  {data_path.stem} checksum OK  ({actual[:16]}...)")
+
+
 if __name__ == "__main__":
     for sym in [CFG["asset"]] + CFG["context_symbols"]:
         verify(sym)
+    verify_news()

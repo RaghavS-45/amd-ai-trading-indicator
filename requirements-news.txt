@@ -1,0 +1,8 @@
+# requirements-news.txt  –  separate environment for src/score_news.py only
+# Created with: python -m venv .venv-news && .venv-news/bin/pip install -r requirements-news.txt
+torch==2.8.0
+transformers==4.49.0
+pandas==2.2.3
+numpy==1.26.4
+pyarrow==17.0.0
+pyyaml==6.0.2

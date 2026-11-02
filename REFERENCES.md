@@ -31,3 +31,9 @@ Libraries are added here when they are first used in code.
   1417-1426. (Why within-day correlations of price level with later returns are biased.)
 - Roll, R. (1984). A Simple Implicit Measure of the Effective Bid-Ask Spread in an Efficient
   Market. *The Journal of Finance*, 39(4), 1127-1139. (Bid-ask bounce and 1-bar reversal.)
+- Araci, D. (2019). FinBERT: Financial Sentiment Analysis with Pre-trained Language Models.
+  arXiv:1908.10063. (Headline sentiment; model `ProsusAI/finbert`.)
+
+## News data and libraries (Phase 5c)
+- Alpaca News API (articles from Benzinga): https://docs.alpaca.markets/us/docs/historical-news-data
+- PyTorch and Hugging Face Transformers, used only in `src/score_news.py`.

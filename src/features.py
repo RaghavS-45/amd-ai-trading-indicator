@@ -19,6 +19,8 @@ Feature sets (config feature_sets, or the sets argument):
   norm     – returns and distances scaled by rolling volatility and clipped at
              +-norm_clip, close location, clipped volume surprise, log volatility,
              time of day
+  news     – sentiment sum and article count over recent bars of the same session,
+             from grid-aligned columns news_sent, news_count (see news.py)
 """
 
 from pathlib import Path
@@ -35,7 +37,7 @@ ROOT = Path(__file__).parent.parent
 CFG = yaml.safe_load((ROOT / "config.yaml").read_text())
 
 
-FEATURE_SETS = ("base", "context", "intraday", "norm")
+FEATURE_SETS = ("base", "context", "intraday", "norm", "news")
 _CAL = None
 
 
@@ -63,7 +65,7 @@ def compute_features(df: pd.DataFrame, sets: Optional[Sequence[str]] = None) -> 
 
 
 def _session_features(df: pd.DataFrame, sets: Sequence[str]) -> pd.DataFrame:
-    builders = {"base": _base, "context": _context, "intraday": _intraday, "norm": _norm}
+    builders = {"base": _base, "context": _context, "intraday": _intraday, "norm": _norm, "news": _news}
     return pd.concat([builders[s](df) for s in sets], axis=1)
 
 
@@ -180,6 +182,14 @@ def _norm(df: pd.DataFrame) -> pd.DataFrame:
     angle = 2 * np.pi * minutes_since_open(df.index) / 390
     feat["norm_tod_sin"] = np.sin(angle)
     feat["norm_tod_cos"] = np.cos(angle)
+    return feat
+
+
+def _news(df: pd.DataFrame) -> pd.DataFrame:
+    feat = pd.DataFrame(index=df.index)
+    feat["news_sent_10"] = df["news_sent"].rolling(10, min_periods=1).sum()
+    feat["news_sent_30"] = df["news_sent"].rolling(30, min_periods=1).sum()
+    feat["news_count_30"] = df["news_count"].rolling(30, min_periods=1).sum()
     return feat
 
 

@@ -480,4 +480,63 @@ Full table: `report/phase5b_summary.csv`; per fold: `report/phase5b_E5b.x_folds.
 
 ---
 
+## Phase 5c – News features (2026-11-02)
+
+**Status:** ⏳ Pre-registered. The list below was committed before any run on folds 6-9.
+
+**Why:** suggested by the instructor. News is the first new information since Phase 5, and it
+is free both historically and live (Alpaca News API, articles from Benzinga).
+
+**Data:** `src/download_news.py` → 2,369 AMD-tagged articles, 2024-11-01 → 2026-06-30 (test
+period not downloaded). `src/score_news.py`: FinBERT `ProsusAI/finbert`, pinned revision, on
+headlines only (about 7 ms each on CPU), in its own environment (`requirements-news.txt`).
+
+**No look-ahead:** only headlines naming AMD count. An article first affects the bar after the
+one it arrived in. If it was edited over 60 s later (4.2% of design articles), it counts as
+arriving when edited, since the stored headline may be the edited version. Tested in
+`tests/test_news.py`. Limit: Alpaca publishes no news latency figure, so live delivery may be
+slower than one bar; the one-minute-late result below tests this only partly.
+
+**Diagnostics (design data through 2026-01-06, `src/phase5c_diagnostics.py`,
+`report/phase5c_events.csv`):**
+| Articles | Events | Days | Up rate (±SE) | Mean 10-min return | Mean size |
+|----------|--------|------|---------------|--------------------|-----------|
+| All design rows | 100,424 rows | | 49.6% | | 22.9 bps |
+| Named | 332 | 169 | 39.8% (2.8) | −6.2 bps | 30.7 bps |
+| Named, at most 2 symbols | 242 | 140 | 39.3% (3.2) | −8.2 bps | 31.2 bps |
+| Named, FinBERT positive | 220 | 121 | 37.7% (3.6) | −9.3 bps | 32.1 bps |
+| Named, FinBERT negative | 112 | 88 | 43.8% (5.1) | −0.2 bps | 28.0 bps |
+
+- Following sentiment lost money (accuracy about 43%). Positive headlines were followed by
+  *falls*. A hand-made word list gave the same picture and is not used further.
+- News predicts size of move better than direction: `news_count_30` vs |return| IC 0.045
+  (t 3.7), vs direction −0.017 (t −1.7). |1-minute return| is already high 15 minutes before
+  articles, so articles partly follow moves instead of causing them.
+- **Warning:** the fall after news was found while scanning about 30 subset/threshold/delay
+  combinations. Its explanation (attention peak, then reversal) came after seeing it. It may
+  be chance. Coverage is also low: about 1.2 named in-session articles per trading day.
+
+**Experiments (same rows, folds, costs, metrics as Phase 5b):**
+| ID | Model | Signal |
+|----|-------|--------|
+| E5c.1 | E5.6 logistic + `news_sent_10`, `news_sent_30`, `news_count_30` | most likely class |
+| E5c.2 | Rule, no training | Down on the first bar a named article counts, any sentiment |
+| E5c.3 | Rule, no training | opposite of the sentiment's sign on that bar |
+| E5c.4 | E5.6 predictions | E5.6, but Up signals are dropped when a named article arrived in the last 30 bars |
+
+**Rules decided in advance:**
+- **Pass:** the unchanged bar on **folds 6-9** (direction accuracy >= base rate + 2 x
+  day-clustered SE, and mean 1x bps/trade > 0). E5.6 is the control. No parameter is tuned.
+- E5c.2 and E5c.3 fire about once a day, so their SE is large and they may fail even if the
+  effect is real. That is accepted; the bar is not loosened for it. Their up rate and
+  event count on folds 6-9 are reported either way.
+- Also reported: all folds, design folds, folds 6-8 alone, and entry one minute late. A
+  positive result that disappears when one minute late does not count as an improvement.
+- 17 experiments in total after this round. If none passes, this is logged as a failure and
+  E5.6 goes to the user as the Phase 6 choice, with no further round on these inputs.
+- Any direction accuracy above ~60% on a large sample is treated as a leak until proven
+  otherwise. E5c.2/E5c.3 have few events, so there it means checking the alignment first.
+
+---
+
 <!-- Add new experiment entries below as phases progress -->

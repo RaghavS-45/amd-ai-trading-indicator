@@ -65,6 +65,17 @@ inner_holdout_days: 30         # last train days, sets the score cutoff for a fo
 rolling_train_days: 120
 ridge_alpha: 1000.0
 
+# ── News (Phase 5c) ────────────────────────────────────────────────
+news_end: "2026-07-01"         # exclusive; train period only until Phase 6
+news_raw_path: "data/amd_news_raw.parquet"
+news_scored_path: "data/amd_news_scored.parquet"
+news_checksum_template: "data/{name}.sha256"
+news_delay_bars: 1             # article minute + 1 bar: first bar it may affect
+news_edit_gap_seconds: 60      # edited later than this: treated as arriving when edited
+news_named_pattern: '\bamd\b|advanced micro'
+finbert_model: "ProsusAI/finbert"
+finbert_revision: "0bc2ac10dda6929bcb1f77ccc43c7ec5c424f031"
+
 # ── Model ──────────────────────────────────────────────────────────
 random_seed: 42
 lgbm_n_estimators: 500
