@@ -37,3 +37,21 @@ Libraries are added here when they are first used in code.
 ## News data and libraries (Phase 5c)
 - Alpaca News API (articles from Benzinga): https://docs.alpaca.markets/us/docs/historical-news-data
 - PyTorch and Hugging Face Transformers, used only in `src/score_news.py`.
+
+## Literature review for the final research round (2026-11-02)
+Details checked against journal or working-paper listings and abstracts; full texts not all read.
+- Aït-Sahalia, Y., Fan, J., Xue, L., & Zhou, Y. (2022). How and When are High-Frequency Stock
+  Returns Predictable? NBER Working Paper 30366. (A later *Management Science* version exists;
+  check its author list before citing it.)
+- Bailey, D. H., & López de Prado, M. (2014). The Deflated Sharpe Ratio: Correcting for Selection
+  Bias, Backtest Overfitting and Non-Normality. *The Journal of Portfolio Management*, 40(5), 94-107.
+- Bogousslavsky, V. (2016). Infrequent Rebalancing, Return Autocorrelation, and Seasonality.
+  *The Journal of Finance*, 71(6), 2967-3006.
+- Chinco, A., Clark-Joseph, A. D., & Ye, M. (2019). Sparse Signals in the Cross-Section of Returns.
+  *The Journal of Finance*, 74(1), 449-492.
+- Chordia, T., Roll, R., & Subrahmanyam, A. (2008). Liquidity and Market Efficiency.
+  *Journal of Financial Economics*, 87(2), 249-268.
+- Gao, L., Han, Y., Li, S. Z., & Zhou, G. (2018). Market Intraday Momentum.
+  *Journal of Financial Economics*, 129(2), 394-414.
+- Heston, S. L., Korajczyk, R. A., & Sadka, R. (2010). Intraday Patterns in the Cross-Section of
+  Stock Returns. *The Journal of Finance*, 65(4), 1369-1407.

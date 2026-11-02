@@ -667,4 +667,58 @@ SIP up rate on the same rows: 50.50%. The small bps differences from the table a
 
 ---
 
+## Phase 5e – Fresh years and the final research round (2026-11-02)
+
+**Status:** ⏳ Pre-registered. The list below was committed before any model ran on these years
+or these feature sets. Approved by the user as the last batch before Phase 6.
+
+**Why:** folds 6-9 have now judged 21 experiments, so they are no longer a clean check, and Phase
+5d showed IEX closes can overstate results. Data before 2024-11 has not influenced any design
+choice, so it gives an independent check without using the hold-out test.
+
+**Data:** free 1-minute IEX bars 2021-01-04 → 2024-10-31 for AMD, SPY, QQQ, NVDA, AVGO, TSM, and
+AMD SIP bars (`src/download_history.py`, separate files with checksums), joined to the existing
+data to 2026-06-30 (`src/long_history.py`). Same flat-fill, sparse-day and warm-up rules. Test
+period rows are cut before anything else, and this is tested. SIP is used for targets and scoring
+only; every feature uses IEX prices, as it will live.
+
+**Strict scoring, for this phase and the Phase 6 choice (`src/tradable.py`):** entry at the next
+bar's open, exit at the close of t+10, priced on SIP, non-overlapping trades.
+**Pass:** direction accuracy on these returns >= their base rate on the same rows + 2 x day-clustered
+SE, **and** mean 1x bps/trade > 0. The 1x cost is unchanged. This replaces the IEX-close version
+of the bar because of Phase 5d; it is stricter, and it is fixed before any result.
+
+**Step 1 – E5.6, unchanged, on fresh years:** the same logistic model, features, IEX 3-class
+labels and most-likely-class signal. Trained on data from 2021 only up to each fold, with the
+walk-forward from `history_min_train_days` (500 days) to 2024-10-31. No row after 2024-10-31 is
+used. This asks one question: was its small edge real, or mostly fold 9? Reported on strict
+scoring and on IEX closes, also split into the first and second half of the folds.
+
+**Step 2 – final round:** ridge + LightGBM (fixed Phase 5b parameters, scores averaged after
+scaling), strongest 20% of scores (cutoff from an inner holdout), trained from 2021 on. The target
+is the scaled tradable return, not the IEX close. One continuous walk-forward with 30-day blocks
+ending 2026-06-30; the last blocks fall on the same dates as folds 6-9.
+
+| ID | Features | Idea and source |
+|----|----------|-----------------|
+| E5e.1 | `norm` | Baseline: tradable target and longer history alone |
+| E5e.2 | `norm` + `z_seas` | Same half hour's mean return over the previous 40 sessions (Heston et al. 2010) |
+| E5e.3 | `norm` + scaled AVGO, TSM (1, 10 bars) and NVDA/AVGO/TSM basket returns (1, 5 bars) | Larger chip stocks leading AMD (Chinco et al. 2019) |
+| E5e.4 | `norm` + AMD and QQQ first half-hour return from the previous close, last half hour only | Intraday momentum (Gao et al. 2018) |
+
+**Rules decided in advance:**
+- **A model qualifies only if it passes strict scoring on BOTH fresh years (validation through
+  2024-10-31) and folds 6-9.** Also reported: 2024-11 → 2026-01, and folds 6-8 alone.
+- No parameter tuning, and no further variants of these ideas after seeing results.
+- E5e.1 is compared with E5e.2-4 on the same rows, so a difference comes from the features.
+- **Choice for Phase 6:** a qualifying model with the highest fresh-years bps; if none, E5.6 stays
+  the choice if its strict bps/trade is positive on the fresh years; if not, the result goes to the
+  user: there would be no evidence of any edge, and the indicator would be reported that way.
+- With 25 models run in total, a single pass is still weak evidence. The Deflated Sharpe Ratio
+  (Bailey & López de Prado 2014) goes in the report as a further adjustment, not a pass rule.
+- Research stops after this round, whatever the outcome. Then Phase 6.
+- Any direction accuracy above ~60% is treated as a leak until proven otherwise.
+
+---
+
 <!-- Add new experiment entries below as phases progress -->

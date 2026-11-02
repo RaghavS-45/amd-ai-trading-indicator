@@ -21,6 +21,11 @@ Feature sets (config feature_sets, or the sets argument):
              time of day
   news     – sentiment sum and article count over recent bars of the same session,
              from grid-aligned columns news_sent, news_count (see news.py)
+  seasonal – mean return of this half hour over previous sessions, scaled by volatility,
+             from grid column seas_mean (see long_history.py)
+  sector   – scaled returns of larger chip stocks and of their equal-weight basket
+  lasthalf – first half hour's return from the previous close, for AMD and QQQ; nonzero
+             only in the session's last half hour (grid columns prev_close, qqq_prev_close)
 """
 
 from pathlib import Path
@@ -37,7 +42,7 @@ ROOT = Path(__file__).parent.parent
 CFG = yaml.safe_load((ROOT / "config.yaml").read_text())
 
 
-FEATURE_SETS = ("base", "context", "intraday", "norm", "news")
+FEATURE_SETS = ("base", "context", "intraday", "norm", "news", "seasonal", "sector", "lasthalf")
 _CAL = None
 
 
@@ -65,7 +70,8 @@ def compute_features(df: pd.DataFrame, sets: Optional[Sequence[str]] = None) -> 
 
 
 def _session_features(df: pd.DataFrame, sets: Sequence[str]) -> pd.DataFrame:
-    builders = {"base": _base, "context": _context, "intraday": _intraday, "norm": _norm, "news": _news}
+    builders = {"base": _base, "context": _context, "intraday": _intraday, "norm": _norm, "news": _news,
+                "seasonal": _seasonal, "sector": _sector, "lasthalf": _lasthalf}
     return pd.concat([builders[s](df) for s in sets], axis=1)
 
 
@@ -190,6 +196,39 @@ def _news(df: pd.DataFrame) -> pd.DataFrame:
     feat["news_sent_10"] = df["news_sent"].rolling(10, min_periods=1).sum()
     feat["news_sent_30"] = df["news_sent"].rolling(30, min_periods=1).sum()
     feat["news_count_30"] = df["news_count"].rolling(30, min_periods=1).sum()
+    return feat
+
+
+def _seasonal(df: pd.DataFrame) -> pd.DataFrame:
+    vol = np.log(df["close"] / df["close"].shift(1)).rolling(CFG["vol_window"]).std()
+    return pd.DataFrame({"z_seas": _scaled(df["seas_mean"], vol, 30)}, index=df.index)
+
+
+def _sector(df: pd.DataFrame) -> pd.DataFrame:
+    feat = pd.DataFrame(index=df.index)
+    w = CFG["vol_window"]
+    one_bar = pd.DataFrame({s: np.log(df[f"{s.lower()}_close"] / df[f"{s.lower()}_close"].shift(1))
+                            for s in CFG["sector_symbols"]})
+    for sym in ("AVGO", "TSM"):
+        vol = one_bar[sym].rolling(w).std()
+        for lag in (1, 10):
+            close = df[f"{sym.lower()}_close"]
+            feat[f"z_{sym.lower()}_ret_{lag}"] = _scaled(np.log(close / close.shift(lag)), vol, lag)
+    basket = one_bar.mean(axis=1, skipna=False)
+    vol = basket.rolling(w).std()
+    for lag in (1, 5):
+        feat[f"z_basket_ret_{lag}"] = _scaled(basket.rolling(lag).sum(), vol, lag)
+    return feat
+
+
+def _lasthalf(df: pd.DataFrame) -> pd.DataFrame:
+    feat = pd.DataFrame(index=df.index)
+    bars = CFG["last_half_minutes"]
+    bar_end = df.index + pd.Timedelta(minutes=1)
+    in_last = ((_session_close(df.index[0]) - bar_end) / pd.Timedelta(minutes=1)) < bars
+    for name, close, prev in [("fh_amd", "close", "prev_close"), ("fh_qqq", "qqq_close", "qqq_prev_close")]:
+        first = np.log(df[close].iloc[bars - 1] / df[prev].iloc[bars - 1]) if len(df) >= bars else np.nan
+        feat[name] = np.where(in_last, first, 0.0)
     return feat
 
 

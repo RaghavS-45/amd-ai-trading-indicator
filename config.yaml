@@ -82,6 +82,19 @@ peers_end: "2026-07-01"        # exclusive; peers are train-period data only
 peer_min_coverage: 0.80        # peers with fewer real bars on the grid are left out
 sip_check_path: "data/amd_1min_sip_check.parquet"   # train period; checks only, never a model input
 
+# ── Older history (Phase 5e): years no model or design choice has seen ──
+history_start: "2021-01-01"
+history_end: "2024-11-01"      # exclusive; the day the main dataset starts
+history_template: "data/hist_{sym}_{feed}_1min_raw.parquet"
+history_checksum_template: "data/hist_{sym}_{feed}_1min_raw.sha256"
+
+history_min_train_days: 500    # fresh folds start about 2023; earlier days only train
+sector_symbols: [NVDA, AVGO, TSM]   # larger chip stocks, free on the live feed
+seasonal_lookback_days: 40
+seasonal_min_days: 30
+last_half_minutes: 30
+fresh_end: "2024-10-31"        # last day of the fresh validation years
+
 # ── Model ──────────────────────────────────────────────────────────
 random_seed: 42
 lgbm_n_estimators: 500

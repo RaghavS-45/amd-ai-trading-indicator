@@ -45,7 +45,7 @@ def _build_session_grid(cal, start: str, end: str) -> pd.DatetimeIndex:
     )
 
 
-def build_grid(df_raw: pd.DataFrame) -> pd.DataFrame:
+def build_grid(df_raw: pd.DataFrame, start: str = None, end: str = None) -> pd.DataFrame:
     """
     Reindex df_raw onto the complete minute grid and forward-fill gaps.
 
@@ -60,7 +60,7 @@ def build_grid(df_raw: pd.DataFrame) -> pd.DataFrame:
     """
     cal = xcals.get_calendar("XNYS")
     full_grid = _build_session_grid(
-        cal, CFG["train_start"], CFG["test_end"]
+        cal, start or CFG["train_start"], end or CFG["test_end"]
     )
 
     df_raw = df_raw.copy()
@@ -169,14 +169,15 @@ def drop_sparse_days(df: pd.DataFrame, min_cov: float):
 CONTEXT_COLS = ["close", "volume", "is_filled"]
 
 
-def join_context(df_grid: pd.DataFrame, symbol: str, df_raw: pd.DataFrame):
+def join_context(df_grid: pd.DataFrame, symbol: str, df_raw: pd.DataFrame,
+                 start: str = None, end: str = None):
     """
     Put a context symbol on the same session grid (same flat-fill rules) and
     join it onto the asset's rows by timestamp: row t gets the context bar
     that opens at t, never t+1. Returns the joined grid and the context
     real-bar share per asset day.
     """
-    ctx = build_grid(df_raw).reindex(df_grid.index)[CONTEXT_COLS]
+    ctx = build_grid(df_raw, start, end).reindex(df_grid.index)[CONTEXT_COLS]
     assert ctx["close"].notna().all()
     prefix = symbol.lower()
     out = df_grid.join(ctx.add_prefix(f"{prefix}_"))
