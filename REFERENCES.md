@@ -76,3 +76,11 @@ Details from memory and journal listings; check page numbers against the origina
   *Journal of Econometrics*, 160(1), 246-256.
 - Zhang, C., Zhang, Y., Cucuringu, M., & Qian, Z. (2024). Volatility Forecasting with Machine
   Learning and Intraday Commonality. *Journal of Financial Econometrics*, 22(2), 492-530.
+
+## Live app (Phase 7)
+- FastAPI 0.115.4 (S. Ramírez, MIT licence), https://fastapi.tiangolo.com
+- Uvicorn 0.32.1 (Encode, BSD-3 licence), https://www.uvicorn.org
+- SQLite (public domain), via Python's `sqlite3` module, https://sqlite.org
+- TradingView Lightweight Charts 4.2.0 (Apache-2.0 licence; its attribution logo is kept on the
+  chart), https://github.com/tradingview/lightweight-charts
+- Alpaca Market Data API, free plan: IEX 1-minute bars and news (Benzinga), https://docs.alpaca.markets

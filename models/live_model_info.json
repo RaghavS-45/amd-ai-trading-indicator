@@ -1,0 +1,81 @@
+{
+  "train_end": "2026-06-30",
+  "move": {
+    "coef": [
+      0.09480273143405697,
+      0.49061178647059067,
+      0.27282860951313304,
+      0.12424326216328495,
+      0.054848543334322986
+    ],
+    "intercept": -0.10249575761710972,
+    "columns": [
+      "lrv_10",
+      "lrv_30",
+      "lrv_sess",
+      "lrv_prev_day",
+      "lrv_seas"
+    ],
+    "smear": 1.300514670560667,
+    "z_typical": 0.5893614374790201,
+    "z_band": 1.1935323160052589,
+    "ratio_median": 0.7548784506991517,
+    "activity_cuts": [
+      0.6874749684025908,
+      1.4847808346707274
+    ],
+    "warning_cut": 2.1143154485685183,
+    "rows": 474550,
+    "first_day": "2021-01-26",
+    "last_day": "2026-06-30",
+    "holdout_days": [
+      "2026-05-18",
+      "2026-06-30"
+    ]
+  },
+  "lean": {
+    "columns": [
+      "ret_1",
+      "ret_3",
+      "ret_5",
+      "ret_10",
+      "ret_30",
+      "volatility",
+      "vol_ratio",
+      "rsi",
+      "macd_hist",
+      "bb_pos",
+      "tod_sin",
+      "tod_cos",
+      "spy_ret_1",
+      "spy_ret_5",
+      "spy_ret_10",
+      "spy_ret_30",
+      "qqq_ret_1",
+      "qqq_ret_5",
+      "qqq_ret_10",
+      "qqq_ret_30",
+      "amd_minus_qqq_ret_10",
+      "nvda_ret_1",
+      "nvda_ret_5",
+      "nvda_ret_10",
+      "nvda_ret_30",
+      "amd_minus_nvda_ret_10",
+      "vwap_dist",
+      "open_dist",
+      "vol_surprise",
+      "trades_surprise",
+      "min_since_open",
+      "min_to_close"
+    ],
+    "cut": 0.055282489696774774,
+    "rows": 142064,
+    "first_day": "2024-11-01",
+    "last_day": "2026-06-30"
+  },
+  "versions": {
+    "sklearn": "1.5.2",
+    "numpy": "1.26.4",
+    "pandas": "2.2.3"
+  }
+}

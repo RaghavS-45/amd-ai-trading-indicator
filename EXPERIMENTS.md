@@ -867,4 +867,54 @@ described). No other deviation.
 
 ---
 
+## Phase 7 – Live indicator, built before the final test (2026-11-06)
+
+*Order change:* Phase 7 (live app) is done before Phase 6 (final test), so the test runs once on the
+exact code that serves users. Nothing here reads the test period (2026-07-01 → 2026-10-15): models are
+fitted with `build_dataset(end_date=train_end)` and the 2021 → train_end long grid; replay uses
+`joined_raw` (cut at 2026-07-01) and `ReplaySource` refuses any day after train_end.
+
+*Frozen on training data* (`src/fit_live.py`, `models/live_model_info.json`, model id `1477dd2f6cc8`):
+- **Move size:** V2 (HAR + time of day), fitted as in its last walk-forward fold. The last 30 training
+  days (2026-05-18 → 06-30) set the smearing factor (1.30) and two band multipliers: typical move
+  (50% of moves smaller) z = 0.589, 80% range z = 1.194. Then refit on all 474,550 rows.
+  Coefficients on lrv_10, lrv_30, lrv_sess, lrv_prev_day, lrv_seas: 0.095, 0.491, 0.273, 0.124, 0.055.
+- **Activity vs normal** = forecast ÷ this time-of-day's usual RV (seas_rv), divided by its median over
+  2025-07-01 → 2026-06-30. Cut points at the 25th / 75th / 90th percentiles of that period:
+  calm < 0.69×, busy > 1.48×, "bigger moves likely" warning > 2.11×.
+- **Direction lean:** E5.6 (logistic, base + context + intraday, 142,064 rows). Shown as "weak up /
+  weak down" only when |p_up − p_down| ≥ 0.055 (top 10% of 2025-07 → 2026-06), otherwise "no clear
+  lean", always with the note that direction tested at about 50%.
+
+These numbers were fixed before the final test. Phase 6 will check, on the test period: coverage of
+the typical-move and 80% bands (SIP closes), QLIKE of V2 with V4 beside it, mean |move| by activity
+level and under the warning, and the lean with strict tradable scoring.
+
+*Engine* (`src/live_engine.py`): each minute, bars that opened up to the last closed minute become final
+8 s after the minute ends; a bar arriving later is ignored. Missing minutes are filled with
+`build_grid` and earlier-session columns (prev_day_rv, seas_rv, prev_close) come from the last 30
+sessions with sparse days dropped, as in training. Features come from `compute_features` on the current
+session. One signal per tradable bar whose 10-minute target is inside the session (10:00 → 15:49 ET
+for move size; the lean starts at 10:03). Signals, outcomes and input bars are written once to SQLite;
+triggers refuse UPDATE and DELETE. Signals computed more than 68 s after their bar closed (after a
+restart) are marked late and left out of the track record.
+
+*Parity check* (`src/check_live_parity.py`, `report/live_parity.csv`): four training days replayed bar
+by bar (2025-03-04, the half-day 2025-11-28, 2026-04-09, 2026-06-15) give the same move-size and lean
+features as the training pipeline: max difference 1.8e-15, no NaN mismatches. Tests (`tests/test_live.py`,
+8 tests, 108 in all pass): parity on synthetic data, step-by-step signals equal after-the-fact ones (no
+repainting), late bars ignored, restart keeps frozen rows, stored rows cannot change, signal window,
+news timing, replay refuses the test period.
+
+*First live run, 2026-11-06:* the app ran on the free IEX feed from about 12:20 ET (Alpaca bars and news
+arrived in time; one engine step takes about 0.1 s). Signals before the start are marked late. AMD was
+flagged busy (about 3× normal) after a large morning drop. This is a smoke test, not a result.
+
+*Known limits:* the live track record scores on IEX closes (SIP is free only after 15 minutes; Phase 6
+and the scorecard use SIP). Live news is timed when first seen; training used the edit-aware rule in
+`news.py`. Outside market hours, live mode recomputes the last session in memory and labels it a
+review.
+
+---
+
 <!-- Add new experiment entries below as phases progress -->

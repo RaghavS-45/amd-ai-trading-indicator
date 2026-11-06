@@ -84,13 +84,16 @@ python run_all.py
 python -m pytest tests/ -v
 ```
 
-### 6. Start the live app (Phase 7+)
+### 6. Start the live app (Phase 7)
 
 ```bash
-uvicorn app.server:app --reload
+python src/fit_live.py                      # once: freezes the models on training data
+uvicorn app.server:app                      # live (free Alpaca IEX); needs ALPACA_API_KEY / ALPACA_SECRET_KEY
+APP_MODE=replay REPLAY_DAY=2026-06-15 REPLAY_SPEED=5 uvicorn app.server:app   # replay a training day
 ```
 
-Then open `http://localhost:8000` in your browser.
+Then open `http://localhost:8000` in your browser. Signals are stored in `app/signals.db` and can never
+be changed (SQLite triggers). Outside market hours live mode shows the last session as a review.
 
 ## Hard Rules (grading constraints)
 

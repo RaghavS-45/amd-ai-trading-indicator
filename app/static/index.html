@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AMD 10-Minute Indicator</title>
+<script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+:root {
+  --bg: #f7f7f5; --surface: #ffffff; --ink: #151514; --ink-2: #5d5c58; --line: #e4e3df;
+  --up: #1f8a70; --down: #c8553d; --band: #2a6fd6; --band-soft: rgba(42,111,214,0.10);
+  --calm: #1f8a70; --normal: #6b6a66; --busy: #c8553d; --warn-bg: #fdf0e9; --news: #8a5cd6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121211; --surface: #1b1b1a; --ink: #ecebe7; --ink-2: #a3a29d; --line: #2e2e2c;
+    --up: #3fb894; --down: #e07a62; --band: #6ea1f2; --band-soft: rgba(110,161,242,0.12);
+    --calm: #3fb894; --normal: #a3a29d; --busy: #e07a62; --warn-bg: #3a2620; --news: #b08cf0;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; padding: 14px 16px 10px; }
+header h1 { font-size: 18px; margin: 0; font-weight: 650; }
+.price { font-size: 22px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.muted { color: var(--ink-2); }
+.chip { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  border: 1px solid var(--line); background: var(--surface); }
+.chip.live { color: var(--up); border-color: var(--up); }
+.chip.review, .chip.replay { color: var(--band); border-color: var(--band); }
+.chip.error { color: var(--down); border-color: var(--down); }
+main { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 12px; padding: 0 16px 16px; }
+@media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+#chart { height: 560px; padding: 0; overflow: hidden; }
+@media (max-width: 900px) { #chart { height: 380px; } }
+.panel { display: flex; flex-direction: column; gap: 12px; }
+h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-2); margin: 0 0 8px; font-weight: 600; }
+.row { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; }
+.row .v { font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.big { font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.level { font-weight: 700; text-transform: uppercase; }
+.level.calm { color: var(--calm); } .level.normal { color: var(--normal); } .level.busy { color: var(--busy); }
+.warn { background: var(--warn-bg); color: var(--busy); border-radius: 8px; padding: 6px 10px; font-weight: 600; margin-top: 6px; }
+.bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin: 6px 0 4px; background: var(--line); }
+.bar span { display: block; height: 100%; }
+.note { font-size: 12px; color: var(--ink-2); margin-top: 6px; }
+.news a, .news div { display: block; padding: 4px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.news div:first-child { border-top: 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--ink-2); padding: 8px 2px 0; }
+.legend i { display: inline-block; width: 18px; height: 0; border-top: 2px dashed var(--band); vertical-align: middle; margin-right: 4px; }
+.legend i.typ { border-top: 1px dotted var(--band); }
+.legend i.news { width: 8px; height: 8px; border: 0; border-radius: 50%; background: var(--news); }
+#viewing { display: none; }
+button { font: inherit; font-size: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  border-radius: 6px; padding: 2px 8px; cursor: pointer; }
+footer { padding: 0 16px 20px; font-size: 12px; color: var(--ink-2); }
+</style>
+</head>
+<body>
+<header>
+  <h1>AMD · next 10 minutes</h1>
+  <span class="price" id="price">–</span>
+  <span class="muted" id="asof"></span>
+  <span class="chip" id="mode">connecting…</span>
+  <span class="muted" id="statusmsg"></span>
+</header>
+<main>
+  <div>
+    <div class="card" id="chart"></div>
+    <div class="legend">
+      <span><i></i>80% range for the close 10 minutes later</span>
+      <span><i class="typ"></i>typical move (half of moves are smaller)</span>
+      <span><i class="news"></i>news tagged AMD</span>
+      <span>Grey candles: no IEX trade that minute (filled flat)</span>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="card">
+      <h2>Next 10 minutes <span id="viewing">· <span id="viewtime"></span> <button id="latest">latest</button></span></h2>
+      <div class="row"><span>Typical move</span><span class="v big" id="typical">–</span></div>
+      <div class="row"><span>80% range</span><span class="v" id="band">–</span></div>
+      <div class="row"><span>Activity</span><span class="v"><span class="level" id="level">–</span> <span class="muted" id="activity"></span></span></div>
+      <div id="warning"></div>
+      <div id="outcome" class="note"></div>
+    </div>
+    <div class="card">
+      <h2>Direction</h2>
+      <div class="row"><span>Lean</span><span class="v" id="lean">–</span></div>
+      <div class="bar"><span id="pdown" style="background:var(--down)"></span><span id="pflat" style="background:var(--line)"></span><span id="pup" style="background:var(--up)"></span></div>
+      <div class="row muted"><span id="pdowntxt">down –</span><span id="pfltxt">flat –</span><span id="puptxt">up –</span></div>
+      <div class="note">Direction over 10 minutes is close to a coin flip (tested: about 50%). Use the range, not the lean.</div>
+    </div>
+    <div class="card">
+      <h2>Context</h2>
+      <div class="row"><span>QQQ, last 10 min</span><span class="v" id="qqq">–</span></div>
+      <div class="row"><span>NVDA, last 10 min</span><span class="v" id="nvda">–</span></div>
+      <div class="row"><span>Headlines naming AMD, last 30 min</span><span class="v" id="news30">–</span></div>
+      <div class="row"><span>Minutes without IEX trades (last 30)</span><span class="v" id="filled">–</span></div>
+      <div class="note">Latest headlines tagged AMD by the news feed:</div>
+      <div class="news" id="news"></div>
+    </div>
+    <div class="card">
+      <h2>Track record, this session</h2>
+      <div class="row"><span>Inside the 80% range</span><span class="v" id="recband">–</span></div>
+      <div class="row"><span>Inside the typical move</span><span class="v" id="rectyp">–</span></div>
+      <div class="note" id="recnote">Scored on IEX closes 10 minutes later. Signals made late (after a restart) are not counted.</div>
+    </div>
+  </div>
+</main>
+<footer id="foot">Paper trading and study use only. Not financial advice.</footer>
+<script>
+const $ = id => document.getElementById(id);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const secs = iso => Date.parse(iso) / 1000;
+let offset = 0, state = null, pinned = null;
+
+const chart = LightweightCharts.createChart($('chart'), {
+  autoSize: true,
+  layout: { background: { color: 'transparent' }, textColor: css('--ink-2'), fontSize: 11 },
+  grid: { vertLines: { color: css('--line') }, horzLines: { color: css('--line') } },
+  rightPriceScale: { borderColor: css('--line') },
+  timeScale: { borderColor: css('--line'), timeVisible: true, secondsVisible: false, rightOffset: 4 },
+  crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+});
+const candles = chart.addCandlestickSeries({ upColor: css('--up'), downColor: css('--down'),
+  borderVisible: false, wickUpColor: css('--up'), wickDownColor: css('--down') });
+const line = (style, width) => chart.addLineSeries({ color: css('--band'), lineWidth: width, lineStyle: style,
+  priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+const bandHi = line(LightweightCharts.LineStyle.Dashed, 2), bandLo = line(LightweightCharts.LineStyle.Dashed, 2);
+const typHi = line(LightweightCharts.LineStyle.Dotted, 1), typLo = line(LightweightCharts.LineStyle.Dotted, 1);
+[typHi, typLo].forEach(x => x.applyOptions({ color: css('--band-soft').replace('0.10', '0.55').replace('0.12', '0.55') }));
+
+const t = iso => secs(iso) + offset;
+const etClock = iso => new Date((secs(iso) + offset) * 1000).toISOString().slice(11, 16);
+const money = x => '$' + x.toFixed(2);
+const pct = (x, d = 2) => (x >= 0 ? '+' : '') + (x * 100).toFixed(d) + '%';
+
+function render(s) {
+  state = s;
+  const st = s.status || {};
+  const chip = $('mode');
+  chip.className = 'chip ' + (st.error ? 'error' : st.mode === 'replay' ? 'replay' : st.review ? 'review' : 'live');
+  chip.textContent = st.error ? 'error' : st.mode === 'replay' ? 'REPLAY' : st.review ? 'REVIEW' : 'LIVE';
+  $('statusmsg').textContent = st.error ? st.error : (st.message || '');
+  if (!s.session) return;
+  offset = s.et_offset_seconds;
+  const bars = s.bars.map(b => ({ time: t(b.time), open: b.open, high: b.high, low: b.low, close: b.close,
+    ...(b.filled ? { color: css('--ink-2'), wickColor: css('--ink-2') } : {}) }));
+  candles.setData(bars);
+  const h = s.horizon_minutes * 60;
+  const at = (k) => s.signals.map(g => ({ time: t(g.ts) + h, value: g[k] }));
+  bandHi.setData(at('band_hi')); bandLo.setData(at('band_lo'));
+  typHi.setData(at('typical_hi')); typLo.setData(at('typical_lo'));
+  const barTimes = new Set(bars.map(b => b.time));
+  candles.setMarkers(s.news.map(n => ({ time: t(n.time), position: 'aboveBar', color: css('--news'),
+    shape: 'circle', text: 'N' })).filter(m => barTimes.has(m.time)));
+  if (bars.length) {
+    const last = s.bars[s.bars.length - 1];
+    $('price').textContent = money(last.close);
+    $('asof').textContent = `${s.session} · bar ${etClock(last.time)} ET`;
+  }
+  const r = s.record;
+  $('recband').textContent = r.scored ? `${r.in_band} of ${r.scored} (${Math.round(100 * r.in_band / r.scored)}%) · target 80%` : 'none yet';
+  $('rectyp').textContent = r.scored ? `${r.in_typical} of ${r.scored} (${Math.round(100 * r.in_typical / r.scored)}%) · target 50%` : 'none yet';
+  $('recnote').textContent = 'Scored on IEX closes 10 minutes later.' +
+    (r.late_signals ? ` ${r.late_signals} signals made late (computed after the fact) are not counted.` : '');
+  $('foot').textContent = `Model ${s.model.id}, trained on data up to ${s.model.train_end}. ` +
+    'Move size: HAR model (Corsi 2009) with time of day. Direction: logistic regression. ' +
+    'Paper trading and study use only. Not financial advice.';
+  showSignal(pinned);
+}
+
+function showSignal(ts) {
+  if (!state || !state.signals.length) return;
+  const sig = (ts && state.signals.find(g => g.ts === ts)) || state.signals[state.signals.length - 1];
+  const isLatest = sig === state.signals[state.signals.length - 1];
+  $('viewing').style.display = isLatest ? 'none' : 'inline';
+  $('viewtime').textContent = `at ${etClock(sig.ts)} ET`;
+  const usd = sig.close * sig.typical_bps / 1e4;
+  $('typical').textContent = `±${money(usd)} (${(sig.typical_bps / 100).toFixed(2)}%)`;
+  $('band').textContent = `${money(sig.band_lo)} – ${money(sig.band_hi)}`;
+  const lv = $('level'); lv.textContent = sig.level; lv.className = 'level ' + sig.level;
+  $('activity').textContent = `${sig.activity.toFixed(1)}× normal for this time`;
+  $('warning').innerHTML = sig.warning ? '<div class="warn">Bigger moves than usual are likely</div>' : '';
+  const out = state.outcomes.find(o => o.ts === sig.ts);
+  $('outcome').textContent = out ? `What happened: ${(out.ret_bps / 100 >= 0 ? '+' : '')}${(out.ret_bps / 100).toFixed(2)}% by ${etClock(out.target_ts)} ET, ` +
+    (out.in_band ? 'inside the 80% range.' : 'outside the 80% range.') : 'Outcome known 10 minutes after this signal.';
+  if (sig.p_up == null) {
+    $('lean').textContent = 'warming up';
+    ['pdown', 'pflat', 'pup'].forEach(k => $(k).style.width = '0');
+  } else {
+    $('lean').textContent = sig.lean === 'none' ? 'no clear lean' : sig.lean;
+    $('pdown').style.width = (100 * sig.p_down) + '%'; $('pflat').style.width = (100 * sig.p_flat) + '%';
+    $('pup').style.width = (100 * sig.p_up) + '%';
+    $('pdowntxt').textContent = `down ${Math.round(100 * sig.p_down)}%`;
+    $('pfltxt').textContent = `flat ${Math.round(100 * sig.p_flat)}%`;
+    $('puptxt').textContent = `up ${Math.round(100 * sig.p_up)}%`;
+  }
+  $('qqq').textContent = sig.qqq_ret_10 == null ? '–' : pct(sig.qqq_ret_10);
+  $('nvda').textContent = sig.nvda_ret_10 == null ? '–' : pct(sig.nvda_ret_10);
+  $('news30').textContent = sig.news_30;
+  $('filled').textContent = Math.round(sig.filled_30 * 30);
+  const until = secs(sig.ts) + 60;
+  const recent = state.news.filter(n => secs(n.time) < until).slice(-4).reverse();
+  $('news').innerHTML = recent.map(n => `<div><span class="muted">${etClock(n.time)}</span> ${escape(n.headline)}</div>`).join('');
+}
+
+function escape(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+chart.subscribeClick(p => {
+  if (!p.time || !state) return;
+  const g = state.signals.find(x => t(x.ts) === p.time);
+  pinned = g ? g.ts : null; showSignal(pinned);
+});
+$('latest').onclick = () => { pinned = null; showSignal(null); };
+
+let autoFit = true;
+['wheel', 'mousedown', 'touchstart'].forEach(e => $('chart').addEventListener(e, () => { autoFit = false; }, { passive: true }));
+async function poll() {
+  try {
+    const s = await (await fetch('/api/state')).json();
+    render(s);
+    if (autoFit && s.bars && s.bars.length) chart.timeScale().fitContent();
+  } catch (e) { $('mode').textContent = 'offline'; $('mode').className = 'chip error'; }
+  setTimeout(poll, state && state.status && state.status.mode === 'replay' ? 1000 : 5000);
+}
+poll();
+</script>
+</body>
+</html>

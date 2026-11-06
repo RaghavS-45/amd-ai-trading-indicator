@@ -13,8 +13,9 @@ Phases run in order:
   5d. Training pooled over peer stocks, E5d.1-E5d.4 (peers from src/download_peers.py)
   5e. Fresh-years check of E5.6 and the final research round (history from src/download_history.py)
   5f. Move size: forecasts of the next 10 minutes' realized variance against HAR baselines
-  6. Calibrate, pick threshold, run final test eval
-  7. Save all report figures to report/
+  7. Live indicator: freeze the models on training data, check live features equal training features
+     (the app itself: uvicorn app.server:app)
+  6. Final test (run once, on the frozen app code)
 
 Usage:
     python run_all.py
@@ -41,6 +42,8 @@ scripts = [
     ROOT / "src" / "phase5d_checks.py",
     [ROOT / "src" / "phase5e_models.py", "--fresh", "--final"],
     ROOT / "src" / "phase5f_models.py",
+    ROOT / "src" / "fit_live.py",
+    ROOT / "src" / "check_live_parity.py",
     # Phase 6 will be added here when it is built
 ]
 

@@ -125,3 +125,17 @@ checksum_template: "data/{sym}_1min_raw.sha256"
 model_path:        "models/lgbm_model.pkl"
 calibrated_model_path: "models/lgbm_calibrated.pkl"
 signals_db_path:   "app/signals.db"
+
+# ── Live indicator (Phase 7) ───────────────────────────────────────
+live_model_path: "models/live_model.joblib"   # fitted on data up to train_end by src/fit_live.py
+live_info_path: "models/live_model_info.json" # readable summary of the frozen model, committed
+live_history_sessions: 30      # earlier sessions loaded at start, for prev_day_rv and seas_rv
+live_bar_delay_seconds: 8      # a minute is final this long after it closes; never revised later
+live_news_minutes: 30
+typical_coverage: 0.50         # "typical move": half of 10-minute moves are smaller
+activity_quantiles: [0.25, 0.75]   # calm / normal / busy cut points of forecast vs normal for the time of day
+warning_quantile: 0.90         # "bigger moves likely" above this quantile
+lean_quantile: 0.90            # direction lean shown only above this quantile of |p_up - p_down|
+activity_from: "2025-07-01"    # last year of training, for the activity and lean cut points
+replay_speed: 2.0              # replay bars per second (replay keeps its signals in memory only)
+replay_default_day: "2026-06-15"
