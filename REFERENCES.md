@@ -55,3 +55,24 @@ Details checked against journal or working-paper listings and abstracts; full te
   *Journal of Financial Economics*, 129(2), 394-414.
 - Heston, S. L., Korajczyk, R. A., & Sadka, R. (2010). Intraday Patterns in the Cross-Section of
   Stock Returns. *The Journal of Finance*, 65(4), 1369-1407.
+
+## Move-size forecasting (Phase 5f)
+Details from memory and journal listings; check page numbers against the originals before citing.
+- Andersen, T. G., & Bollerslev, T. (1997). Intraday Periodicity and Volatility Persistence in
+  Financial Markets. *Journal of Empirical Finance*, 4(2-3), 115-158.
+- Bollerslev, T. (1986). Generalized Autoregressive Conditional Heteroskedasticity. *Journal of
+  Econometrics*, 31(3), 307-327.
+- Corsi, F. (2009). A Simple Approximate Long-Memory Model of Realized Volatility. *Journal of
+  Financial Econometrics*, 7(2), 174-196.
+- Diebold, F. X., & Mariano, R. S. (1995). Comparing Predictive Accuracy. *Journal of Business &
+  Economic Statistics*, 13(3), 253-263.
+- Duan, N. (1983). Smearing Estimate: A Nonparametric Retransformation Method. *Journal of the
+  American Statistical Association*, 78(383), 605-610.
+- Engle, R. F. (1982). Autoregressive Conditional Heteroscedasticity with Estimates of the Variance
+  of United Kingdom Inflation. *Econometrica*, 50(4), 987-1007.
+- Gneiting, T., & Raftery, A. E. (2007). Strictly Proper Scoring Rules, Prediction, and Estimation.
+  *Journal of the American Statistical Association*, 102(477), 359-378.
+- Patton, A. J. (2011). Volatility Forecast Comparison Using Imperfect Volatility Proxies.
+  *Journal of Econometrics*, 160(1), 246-256.
+- Zhang, C., Zhang, Y., Cucuringu, M., & Qian, Z. (2024). Volatility Forecasting with Machine
+  Learning and Intraday Commonality. *Journal of Financial Econometrics*, 22(2), 492-530.

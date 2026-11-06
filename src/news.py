@@ -34,5 +34,12 @@ def news_columns(index: pd.DatetimeIndex, news: pd.DataFrame) -> pd.DataFrame:
                          "news_count": per_bar["size"].reindex(index).fillna(0.0).to_numpy()}, index=index)
 
 
+def news_count_column(index: pd.DatetimeIndex, news: pd.DataFrame) -> pd.Series:
+    """Named articles first counting on each bar; needs headlines and timestamps only."""
+    named = news["headline"].str.lower().str.contains(CFG["news_named_pattern"], regex=True)
+    counts = first_bar(news[named]).value_counts()
+    return pd.Series(counts.reindex(index).fillna(0.0).to_numpy(), index=index, name="news_count")
+
+
 def load_scored() -> pd.DataFrame:
     return pd.read_parquet(ROOT / CFG["news_scored_path"])

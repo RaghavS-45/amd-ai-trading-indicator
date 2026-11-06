@@ -12,6 +12,7 @@ Phases run in order:
       beforehand: src/download_news.py, then src/score_news.py in its own environment)
   5d. Training pooled over peer stocks, E5d.1-E5d.4 (peers from src/download_peers.py)
   5e. Fresh-years check of E5.6 and the final research round (history from src/download_history.py)
+  5f. Move size: forecasts of the next 10 minutes' realized variance against HAR baselines
   6. Calibrate, pick threshold, run final test eval
   7. Save all report figures to report/
 
@@ -39,6 +40,7 @@ scripts = [
     ROOT / "src" / "phase5d_models.py",
     ROOT / "src" / "phase5d_checks.py",
     [ROOT / "src" / "phase5e_models.py", "--fresh", "--final"],
+    ROOT / "src" / "phase5f_models.py",
     # Phase 6 will be added here when it is built
 ]
 

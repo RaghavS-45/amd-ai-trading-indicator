@@ -73,6 +73,7 @@ news_checksum_template: "data/{name}.sha256"
 news_delay_bars: 1             # article minute + 1 bar: first bar it may affect
 news_edit_gap_seconds: 60      # edited later than this: treated as arriving when edited
 news_named_pattern: '\bamd\b|advanced micro'
+news_hist_raw_path: "data/amd_news_hist_raw.parquet"   # history_start to history_end; counts only
 finbert_model: "ProsusAI/finbert"
 finbert_revision: "0bc2ac10dda6929bcb1f77ccc43c7ec5c424f031"
 
@@ -94,6 +95,13 @@ seasonal_lookback_days: 40
 seasonal_min_days: 30
 last_half_minutes: 30
 fresh_end: "2024-10-31"        # last day of the fresh validation years
+
+# ── Move size (Phase 5f) ───────────────────────────────────────────
+rv_floor: 1.0e-8               # added before log; (1 bp)^2
+seasonal_rv_days: 20           # previous sessions for the same 10-minute bin
+seasonal_rv_min_days: 15
+band_coverage: 0.80            # target share of 10-minute returns inside the band
+vol_ridge_alpha: 1.0
 
 # ── Model ──────────────────────────────────────────────────────────
 random_seed: 42

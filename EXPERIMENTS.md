@@ -768,4 +768,61 @@ Files: `report/phase5e_summary.csv`, `report/phase5e_fresh.csv`, `report/phase5e
 
 ---
 
+## Phase 5f – Forecasting the size of the next move (2026-11-06)
+
+**Status:** ⏳ Pre-registered. The list below was committed before any model was fitted.
+
+**Why the target changed:** the evaluator said the indicator should help a user judge what
+might happen and decide, not call exact Up/Down. Direction showed no edge in 25 models. The size
+of moves is a different question with well-known structure: volatility clusters (Engle 1982;
+Bollerslev 1986) and follows a daily pattern (Andersen & Bollerslev 1997). The course asks to
+improve on published results, so the comparison is against the standard HAR model (Corsi 2009),
+adapted to a 10-minute horizon. Zhang et al. (2024) report that ML using intraday data beats
+HAR-type baselines; a 2025 study of intraday spot volatility found a HAR variant hard to beat.
+
+**Target:** realized variance of the next 10 minutes, RV = sum of squared 1-minute log returns,
+close t to close t+10, from **SIP** closes, same session only. Also the 10-minute return, for an
+80% band. Features use IEX only, as live. Same rows rule (`tradable_mask`), same 28-fold
+walk-forward from 2021 as Phase 5e (`history_min_train_days` 500, 30-day blocks to 2026-06-30).
+The hold-out test is not loaded.
+
+**Features (`vol` set, 18):** log RV of AMD over the last 10 and 30 bars, the session so far, the
+previous session, and this 10-minute bin over the previous 20 sessions; log RV of QQQ and NVDA
+over 10 and 30 bars; AMD-named news articles in the last 30 bars (2021 onward); |overnight gap|;
+clipped volume and trade-count surprise; time of day. All on 10-minute scale, logs with a
+(1 bp)^2 floor. Leakage and session tests in `tests/test_volatility.py`.
+
+**Models (fixed settings, no tuning):**
+| ID | Model | Inputs | Role |
+|----|-------|--------|------|
+| V0 | Persistence: next RV = last 10 minutes' RV | `lrv_10` | Naive baseline |
+| V1 | HAR, OLS on log RV | last 10, 30 min, session, previous day | Corsi (2009) adapted |
+| V2 | HAR + time-of-day pattern, OLS | V1 + this bin on past 20 sessions | **Baseline to beat** |
+| V3 | Ridge (alpha 1, standardized) | all 18 | Our model |
+| V4 | LightGBM regression (500 trees, lr 0.05, 31 leaves, min_child_samples 500, feature and bagging fraction 0.8) | all 18 | Our model |
+
+Each fold: fit on training days except the last 30, then on those 30 days set (a) a smearing
+factor that turns the log forecast into a variance level (Duan 1983), and (b) the band
+multiplier so that 80% of |10-minute returns| fall inside it. Then refit on all training days.
+
+**Metrics:** QLIKE on the variance level (robust to a noisy RV proxy, Patton 2011; the main
+metric), MSE and R² on log RV, band coverage (target 80%), band width in bps, and the interval
+score (Gneiting & Raftery 2007, alpha 0.2).
+
+**Pass rule, decided in advance:** a model beats V2 if its mean QLIKE is lower than V2's by more
+than 2 day-clustered SEs (per-day mean loss differences, a Diebold-Mariano style test), on
+**both** the fresh years (validation through 2024-10-31) and folds 6-9 (2026-01-07 → 06-30).
+"Between" (2024-11 → 2026-01) and all folds are also reported.
+
+**Choice for the indicator:** the passing model with the lowest fresh-years QLIKE. If none
+passes, **V2 (HAR) becomes the indicator's move-size model**, and the report says that our
+features did not improve on the standard method. Either way the band coverage is reported, and a
+band whose coverage is far from 80% is recalibrated on validation data before Phase 6.
+
+**Notes:** no parameter is changed after seeing results. Any R² on log RV far above what
+volatility papers report, or a band that is right almost every time, is treated as a leak until
+checked. Direction results are unchanged by this phase.
+
+---
+
 <!-- Add new experiment entries below as phases progress -->

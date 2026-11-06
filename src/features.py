@@ -24,6 +24,9 @@ Feature sets (config feature_sets, or the sets argument):
   seasonal – mean return of this half hour over previous sessions, scaled by volatility,
              from grid column seas_mean (see long_history.py)
   sector   – scaled returns of larger chip stocks and of their equal-weight basket
+  vol      – log realized variance of AMD, QQQ, NVDA over recent bars, of the session so far,
+             of the previous session and of this 10-minute bin on past sessions (grid columns
+             prev_day_rv, seas_rv, see volatility.py); news count; overnight gap; surprises
   lasthalf – first half hour's return from the previous close, for AMD and QQQ; nonzero
              only in the session's last half hour (grid columns prev_close, qqq_prev_close)
 """
@@ -42,7 +45,7 @@ ROOT = Path(__file__).parent.parent
 CFG = yaml.safe_load((ROOT / "config.yaml").read_text())
 
 
-FEATURE_SETS = ("base", "context", "intraday", "norm", "news", "seasonal", "sector", "lasthalf")
+FEATURE_SETS = ("base", "context", "intraday", "norm", "news", "seasonal", "sector", "lasthalf", "vol")
 _CAL = None
 
 
@@ -71,7 +74,8 @@ def compute_features(df: pd.DataFrame, sets: Optional[Sequence[str]] = None) -> 
 
 def _session_features(df: pd.DataFrame, sets: Sequence[str]) -> pd.DataFrame:
     builders = {"base": _base, "context": _context, "intraday": _intraday, "norm": _norm, "news": _news,
-                "seasonal": _seasonal, "sector": _sector, "lasthalf": _lasthalf}
+                "seasonal": _seasonal, "sector": _sector, "lasthalf": _lasthalf,
+                "vol": _vol}
     return pd.concat([builders[s](df) for s in sets], axis=1)
 
 
@@ -229,6 +233,33 @@ def _lasthalf(df: pd.DataFrame) -> pd.DataFrame:
     for name, close, prev in [("fh_amd", "close", "prev_close"), ("fh_qqq", "qqq_close", "qqq_prev_close")]:
         first = np.log(df[close].iloc[bars - 1] / df[prev].iloc[bars - 1]) if len(df) >= bars else np.nan
         feat[name] = np.where(in_last, first, 0.0)
+    return feat
+
+
+def _log_rv(x: pd.Series) -> pd.Series:
+    return np.log(x + CFG["rv_floor"])
+
+
+def _vol(df: pd.DataFrame) -> pd.DataFrame:
+    feat = pd.DataFrame(index=df.index)
+    sq = np.log(df["close"] / df["close"].shift(1)) ** 2
+    feat["lrv_10"] = _log_rv(sq.rolling(10).sum())
+    feat["lrv_30"] = _log_rv(sq.rolling(30).sum() / 3)
+    feat["lrv_sess"] = _log_rv(sq.expanding(min_periods=10).mean() * 10)
+    feat["lrv_prev_day"] = _log_rv(df["prev_day_rv"])
+    feat["lrv_seas"] = _log_rv(df["seas_rv"])
+    for sym in ("qqq", "nvda"):
+        sym_sq = np.log(df[f"{sym}_close"] / df[f"{sym}_close"].shift(1)) ** 2
+        feat[f"{sym}_lrv_10"] = _log_rv(sym_sq.rolling(10).sum())
+        feat[f"{sym}_lrv_30"] = _log_rv(sym_sq.rolling(30).sum() / 3)
+    feat["news_count_30"] = df["news_count"].rolling(30, min_periods=1).sum()
+    feat["abs_gap"] = np.abs(np.log(df["open"].iloc[0] / df["prev_close"].iloc[0]))
+    intraday = _intraday(df)
+    feat["vol_surprise_clip"] = intraday["vol_surprise"].clip(-CFG["norm_clip"], CFG["norm_clip"])
+    feat["trades_surprise_clip"] = intraday["trades_surprise"].clip(-CFG["norm_clip"], CFG["norm_clip"])
+    angle = 2 * np.pi * minutes_since_open(df.index) / 390
+    feat["vol_tod_sin"] = np.sin(angle)
+    feat["vol_tod_cos"] = np.cos(angle)
     return feat
 
 
