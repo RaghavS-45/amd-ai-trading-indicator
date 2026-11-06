@@ -770,7 +770,11 @@ Files: `report/phase5e_summary.csv`, `report/phase5e_fresh.csv`, `report/phase5e
 
 ## Phase 5f – Forecasting the size of the next move (2026-11-06)
 
-**Status:** ⏳ Pre-registered. The list below was committed before any model was fitted.
+**Status:** ✅/❌ Run 2026-11-06: move size is clearly predictable (R² on log RV about 0.5 vs 0.15-0.29
+for persistence), and the 80% band is well calibrated. **Our models did not pass the rule:** they beat
+HAR on folds 6-9 and on 2024-11 → 2026-01, but missed on the fresh years. By the rule set in advance,
+**V2 (HAR) is the indicator's move-size model.** The list below was committed before any model was
+fitted (commit `d41f2cc`) and is unchanged.
 
 **Why the target changed:** the evaluator said the indicator should help a user judge what
 might happen and decide, not call exact Up/Down. Direction showed no edge in 25 models. The size
@@ -822,6 +826,44 @@ band whose coverage is far from 80% is recalibrated on validation data before Ph
 **Notes:** no parameter is changed after seeing results. Any R² on log RV far above what
 volatility papers report, or a band that is right almost every time, is treated as a leak until
 checked. Direction results are unchanged by this phase.
+
+**Results:**
+
+*Setup:* 474,550 rows, 1,361 days, 2021-01-26 → 2026-06-30; 28 folds from 2023-02-21. The `vol` set
+has **15** features, not 18 as written above (counting error in the plan; the list itself is as
+described). No other deviation.
+
+| Model | Period | QLIKE | vs HAR (V2), ±SE | R² log RV | 80% band coverage | Band width | Interval score | Beats V2 |
+|-------|--------|-------|------------------|-----------|-------------------|------------|----------------|----------|
+| V0 persistence | Fresh | 0.3314 | +0.1271 (0.0038) | 0.148 | 80.0% | 78.6 bps | 108.7 | ❌ |
+| | Folds 6-9 | 0.3633 | +0.1382 (0.0073) | 0.210 | 79.4% | 97.5 bps | 138.6 | ❌ |
+| V1 HAR | Fresh | 0.2040 | −0.0004 (0.0004) | 0.501 | 80.0% | 73.1 bps | 104.6 | ❌ |
+| | Folds 6-9 | 0.2265 | +0.0013 (0.0007) | 0.525 | 79.3% | 90.4 bps | 133.8 | ❌ |
+| **V2 HAR + time of day** | Fresh | 0.2043 | — | 0.501 | 80.0% | 73.1 bps | 104.5 | baseline |
+| | Folds 6-9 | 0.2251 | — | 0.530 | 79.1% | 90.2 bps | 133.7 | baseline |
+| V3 Ridge, all features | Fresh | 0.2026 | −0.0018 (0.0014) | 0.511 | 80.0% | 73.0 bps | 104.4 | ❌ |
+| | Folds 6-9 | 0.2163 | **−0.0088 (0.0012)** | 0.549 | 79.1% | 90.1 bps | 133.4 | ✅ |
+| V4 LightGBM, all features | Fresh | 0.2014 | −0.0028 (0.0015) | 0.509 | 80.0% | 72.9 bps | 104.5 | ❌ (just: 1.9 SE) |
+| | Folds 6-9 | 0.2135 | **−0.0116 (0.0024)** | 0.554 | 79.0% | 89.9 bps | 133.4 | ✅ |
+
+2024-11 → 2026-01: V3 −0.0044 (±0.0013), V4 −0.0051 (±0.0023), both beat V2. All 28 folds: V3 −0.0037
+(±0.0009), V4 −0.0049 (±0.0012). Files: `report/phase5f_summary.csv`, `report/phase5f_run.log`,
+`report/phase5f_V*_oos.parquet` (gitignored).
+
+**Conclusions:**
+- The size of the next 10-minute move is predictable, unlike its direction. HAR explains about half
+  the variation in log RV and cuts QLIKE by about 38% against persistence. This is the useful
+  signal for the indicator.
+- The 80% bands hold 79-80% of outcomes in every period, so the band can be shown as stated. A typical
+  band is about ±37 bps (±45 bps in 2026).
+- Our extra inputs (news, QQQ and NVDA volatility, surprises, gap) improve on HAR by 1-5% in QLIKE.
+  The gain is clear in 2024-2026 but not significant in 2023-2024, so by the rule it is not shown to
+  hold in general. It may reflect more news coverage or a different market in recent years; that
+  explanation is untested.
+- V1 and V2 are almost the same: the time-of-day term adds nothing once the session's own
+  volatility is known.
+- **Decision (by the rule):** the indicator uses V2 for move size. V4 is reported next to it on the
+  final test as a pre-specified comparison, not as the choice.
 
 ---
 
