@@ -22,6 +22,7 @@ import yaml
 from build_grid import CONTEXT_COLS, build_grid, drop_sparse_days
 from features import compute_features
 from live_model import LEAN_SETS, MOVE_SETS, direction_lean, move_forecast
+from live_score import scorecard
 from long_history import previous_close
 from news import first_bar
 from sessions import ET, tradable_mask
@@ -75,6 +76,7 @@ class Engine:
         self.final_upto = max([self.open_utc - ONE] + [d.index.max() for d in self.today.values() if len(d)])
         self.news = {}
         self.frame = None
+        self.feat = None
         self.day = day   # set last: a failed start is retried on the next tick
 
     # ── one step ────────────────────────────────────────────────────
@@ -131,7 +133,7 @@ class Engine:
         today = self.frame
         if not len(today):
             return 0
-        feat = compute_features(today, MOVE_SETS + LEAN_SETS)
+        feat = self.feat = compute_features(today, MOVE_SETS + LEAN_SETS)
         done = set(self.store.signals(self.session)["ts"])
         ok = tradable_mask(feat.index) & (feat.index + H <= self.last_bar)
         rows_idx = [ts for ts in feat.index[ok] if _iso(ts) not in done]
@@ -190,6 +192,8 @@ class Engine:
                        for a in self.news.values() if a["bar"] >= self.open_utc), key=lambda a: a["time"])
         live = sig[sig["late"] == 0]
         scored = out[out["ts"].isin(set(live["ts"]))]
+        rsi = self.feat["rsi"].rename(index=_iso) if self.feat is not None else pd.Series(dtype=float)
+        graded = scored.merge(live[["ts", "close", "lean"]], on="ts").assign(rsi=lambda d: d["ts"].map(rsi))
         offset = self.open_utc.tz_convert(ET).utcoffset().total_seconds()
         return {
             "session": self.session, "open": _iso(self.open_utc), "close": _iso(self.close_utc),
@@ -203,6 +207,9 @@ class Engine:
             "record": {"scored": int(len(scored)), "in_band": int(scored["in_band"].sum()),
                        "in_typical": int(scored["in_typical"].sum()),
                        "late_signals": int((sig["late"] == 1).sum())},
+            "scorecard": scorecard(graded),
+            "costs": {"shares": CFG["shares_per_trade"],
+                      "per_share_each_way": CFG["fee_per_share"] + CFG["slippage_per_share"]},
             "model": {"id": self.model_id, "train_end": self.model["train_end"],
                       "band_coverage": CFG["band_coverage"], "typical_coverage": CFG["typical_coverage"]},
         }

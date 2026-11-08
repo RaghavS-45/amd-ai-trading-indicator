@@ -55,6 +55,16 @@ h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: v
 #viewing { display: none; }
 button { font: inherit; font-size: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
   border-radius: 6px; padding: 2px 8px; cursor: pointer; }
+.dir { font-size: 22px; font-weight: 750; letter-spacing: .02em; }
+.dir.up { color: var(--up); } .dir.down { color: var(--down); } .dir.none { color: var(--ink-2); font-size: 18px; }
+table.score { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+table.score th { text-align: right; font-weight: 600; color: var(--ink-2); font-size: 11px; padding: 2px 0 4px 10px; vertical-align: bottom; }
+table.score td { text-align: right; padding: 4px 0 4px 10px; border-top: 1px solid var(--line); white-space: nowrap; }
+table.score th:first-child, table.score td:first-child { text-align: left; }
+table.score tr.ours td { font-weight: 650; }
+.pos { color: var(--up); } .neg { color: var(--down); }
+.legend i.dirsq { width: 10px; height: 10px; border: 0; background: var(--up); margin-right: 1px; }
+.legend i.dirsq.dn { background: var(--down); margin-right: 4px; }
 footer { padding: 0 16px 20px; font-size: 12px; color: var(--ink-2); }
 </style>
 </head>
@@ -72,6 +82,7 @@ footer { padding: 0 16px 20px; font-size: 12px; color: var(--ink-2); }
     <div class="legend">
       <span><i></i>80% range for the close 10 minutes later</span>
       <span><i class="typ"></i>typical move (half of moves are smaller)</span>
+      <span><i class="dirsq"></i><i class="dirsq dn"></i>arrows and bottom strip: direction signal (grey = no clear signal)</span>
       <span><i class="news"></i>news tagged AMD</span>
       <span>Grey candles: no IEX trade that minute (filled flat)</span>
     </div>
@@ -87,10 +98,10 @@ footer { padding: 0 16px 20px; font-size: 12px; color: var(--ink-2); }
     </div>
     <div class="card">
       <h2>Direction</h2>
-      <div class="row"><span>Lean</span><span class="v" id="lean">–</span></div>
+      <div class="row"><span class="dir none" id="dir">–</span><span class="v muted" id="dirconf"></span></div>
       <div class="bar"><span id="pdown" style="background:var(--down)"></span><span id="pflat" style="background:var(--line)"></span><span id="pup" style="background:var(--up)"></span></div>
       <div class="row muted"><span id="pdowntxt">down –</span><span id="pfltxt">flat –</span><span id="puptxt">up –</span></div>
-      <div class="note">Direction over 10 minutes is close to a coin flip (tested: about 50%). Use the range, not the lean.</div>
+      <div class="note">Confidence is the model's own estimate that the price ends up rather than down (or the reverse); a signal shows only when it is clearly away from 50%. In testing on 2023–2026 data, confident signals were right about 50% of the time: treat them as a weak hint and rely on the range above.</div>
     </div>
     <div class="card">
       <h2>Context</h2>
@@ -102,7 +113,15 @@ footer { padding: 0 16px 20px; font-size: 12px; color: var(--ink-2); }
       <div class="news" id="news"></div>
     </div>
     <div class="card">
-      <h2>Track record, this session</h2>
+      <h2>Direction scorecard, this session</h2>
+      <table class="score">
+        <thead><tr><th></th><th>Signals</th><th>Right</th><th>Trades</th><th>Profit</th></tr></thead>
+        <tbody id="score"><tr><td colspan="5" class="muted">none yet</td></tr></tbody>
+      </table>
+      <div class="note" id="scorenote"></div>
+    </div>
+    <div class="card">
+      <h2>Range track record, this session</h2>
       <div class="row"><span>Inside the 80% range</span><span class="v" id="recband">–</span></div>
       <div class="row"><span>Inside the typical move</span><span class="v" id="rectyp">–</span></div>
       <div class="note" id="recnote">Scored on IEX closes 10 minutes later. Signals made late (after a restart) are not counted.</div>
@@ -132,7 +151,14 @@ const bandHi = line(LightweightCharts.LineStyle.Dashed, 2), bandLo = line(Lightw
 const typHi = line(LightweightCharts.LineStyle.Dotted, 1), typLo = line(LightweightCharts.LineStyle.Dotted, 1);
 [typHi, typLo].forEach(x => x.applyOptions({ color: css('--band-soft').replace('0.10', '0.55').replace('0.12', '0.55') }));
 
+const dirStrip = chart.addHistogramSeries({ priceScaleId: 'dir', priceLineVisible: false, lastValueVisible: false });
+chart.priceScale('dir').applyOptions({ scaleMargins: { top: 0.9, bottom: 0 }, visible: false });
+candles.priceScale().applyOptions({ scaleMargins: { top: 0.05, bottom: 0.14 } });
+
 const t = iso => secs(iso) + offset;
+const dirOf = g => g.lean === 'weak up' ? 1 : g.lean === 'weak down' ? -1 : 0;
+const confOf = g => { const s = g.p_up + g.p_down; return s > 0 ? Math.max(g.p_up, g.p_down) / s : 0.5; };
+const NAMES = { indicator: 'Our indicator', always_up: 'Always Up', rsi_rule: 'RSI rule' };
 const etClock = iso => new Date((secs(iso) + offset) * 1000).toISOString().slice(11, 16);
 const money = x => '$' + x.toFixed(2);
 const pct = (x, d = 2) => (x >= 0 ? '+' : '') + (x * 100).toFixed(d) + '%';
@@ -154,8 +180,17 @@ function render(s) {
   bandHi.setData(at('band_hi')); bandLo.setData(at('band_lo'));
   typHi.setData(at('typical_hi')); typLo.setData(at('typical_lo'));
   const barTimes = new Set(bars.map(b => b.time));
-  candles.setMarkers(s.news.map(n => ({ time: t(n.time), position: 'aboveBar', color: css('--news'),
-    shape: 'circle', text: 'N' })).filter(m => barTimes.has(m.time)));
+  const withP = s.signals.filter(g => g.p_up != null);
+  dirStrip.setData(withP.map(g => { const d = dirOf(g);
+    return { time: t(g.ts), value: Math.max(confOf(g) - 0.5, 0.01),
+      color: d > 0 ? css('--up') : d < 0 ? css('--down') : css('--line') }; }));
+  const arrows = withP.filter(g => dirOf(g) !== 0).map(g => dirOf(g) > 0
+    ? { time: t(g.ts), position: 'belowBar', color: css('--up'), shape: 'arrowUp' }
+    : { time: t(g.ts), position: 'aboveBar', color: css('--down'), shape: 'arrowDown' });
+  const news = s.news.map(n => ({ time: t(n.time), position: 'aboveBar', color: css('--news'),
+    shape: 'circle', text: 'N' }));
+  candles.setMarkers(arrows.concat(news).filter(m => barTimes.has(m.time)).sort((a, b) => a.time - b.time));
+  renderScore(s);
   if (bars.length) {
     const last = s.bars[s.bars.length - 1];
     $('price').textContent = money(last.close);
@@ -170,6 +205,21 @@ function render(s) {
     'Move size: HAR model (Corsi 2009) with time of day. Direction: logistic regression. ' +
     'Paper trading and study use only. Not financial advice.';
   showSignal(pinned);
+}
+
+function renderScore(s) {
+  const sc = s.scorecard || {};
+  if (!sc.indicator) return;
+  const usd = x => (x >= 0 ? '+$' : '−$') + Math.abs(x).toFixed(2);
+  $('score').innerHTML = ['indicator', 'always_up', 'rsi_rule'].map(k => { const r = sc[k];
+    const acc = r.signals ? `${r.correct} (${Math.round(100 * r.accuracy)}%)` : '–';
+    const pnl = r.trades ? `<span class="${r.pnl_usd >= 0 ? 'pos' : 'neg'}">${usd(r.pnl_usd)}</span>` : '–';
+    return `<tr class="${k === 'indicator' ? 'ours' : ''}"><td>${NAMES[k]}</td><td>${r.signals}</td><td>${acc}</td>` +
+      `<td>${r.trades}</td><td>${pnl}</td></tr>`; }).join('');
+  const c = s.costs;
+  $('scorenote').textContent = '"Right" means the price 10 minutes later moved the way the signal said. Profit is after costs, on paper trades: ' +
+    `${c.shares} shares, held 10 minutes, one at a time, $${(2 * c.per_share_each_way).toFixed(2)}/share round-trip cost. ` +
+    'Scored on IEX closes; signals made late are not counted. One day is a small sample, so a few lucky trades move these numbers a lot.';
 }
 
 function showSignal(ts) {
@@ -188,10 +238,14 @@ function showSignal(ts) {
   $('outcome').textContent = out ? `What happened: ${(out.ret_bps / 100 >= 0 ? '+' : '')}${(out.ret_bps / 100).toFixed(2)}% by ${etClock(out.target_ts)} ET, ` +
     (out.in_band ? 'inside the 80% range.' : 'outside the 80% range.') : 'Outcome known 10 minutes after this signal.';
   if (sig.p_up == null) {
-    $('lean').textContent = 'warming up';
+    $('dir').textContent = 'warming up'; $('dir').className = 'dir none'; $('dirconf').textContent = '';
     ['pdown', 'pflat', 'pup'].forEach(k => $(k).style.width = '0');
   } else {
-    $('lean').textContent = sig.lean === 'none' ? 'no clear lean' : sig.lean;
+    const d = dirOf(sig), conf = Math.round(100 * confOf(sig));
+    $('dir').textContent = d > 0 ? `▲ UP · ${conf}%` : d < 0 ? `▼ DOWN · ${conf}%` : 'No clear signal';
+    $('dir').className = 'dir ' + (d > 0 ? 'up' : d < 0 ? 'down' : 'none');
+    const pu = Math.round(100 * sig.p_up / (sig.p_up + sig.p_down));
+    $('dirconf').textContent = d ? 'confident signal' : `up/down ${pu}/${100 - pu}: too close to call`;
     $('pdown').style.width = (100 * sig.p_down) + '%'; $('pflat').style.width = (100 * sig.p_flat) + '%';
     $('pup').style.width = (100 * sig.p_up) + '%';
     $('pdowntxt').textContent = `down ${Math.round(100 * sig.p_down)}%`;

@@ -917,4 +917,31 @@ review.
 
 ---
 
+## Phase 7b – Direction on every candle and a live scorecard (2026-11-08)
+
+*Why:* the brief (section 4.1) asks for direction (Up / Down / no clear signal) with a confidence
+on every candle, and the live test (4.3, 4.4) grades the accuracy of confident signals and simulated
+profit after costs against always-Up and an RSI rule. The page only showed the lean in the side panel
+and scored only the ranges. No model, threshold or input changed (model 1477dd2f6cc8).
+
+*Display:* each signal's direction comes from the frozen lean (Up when p_up − p_down ≥ 0.0553,
+Down when ≤ −0.0553, else no clear signal). Confidence = the larger of p_up and p_down divided by
+p_up + p_down: the model's estimate that the move goes that way rather than the other. Shown as an
+arrow on the candle, a bottom strip (green / red / grey, height = confidence − 50%) and a badge
+("▲ UP · 54%"). The panel note says confident signals tested at about 50%.
+
+*Scorecard* (`src/live_score.py`): the same rules as Phases 4-5. A signal is right when the close
+10 minutes later moved its way (a zero move is wrong). Paper trades: 10 shares, entered at the signal
+bar's close, closed 10 minutes later, one at a time (`tradable.non_overlapping`), $0.02/share
+round-trip cost. Baselines on the same on-time rows: always Up, and the Phase 4 RSI rule (Up if
+RSI(14) < 30, Down if > 70, else nothing). RSI comes from `compute_features` on the frozen bars, so
+it does not repaint. Late signals are excluded. Tests: `tests/test_live_score.py` (3), plus one engine
+check in `tests/test_live.py`; 111 pass.
+
+*Replay check, 2026-06-15:* the page draws the arrows, strip, badge and table. That day is inside the
+training period, so its numbers say nothing about skill. The live scorecard scores on IEX closes;
+Phase 6 must score the same signals on SIP with next-open entry (`tradable.py`).
+
+---
+
 <!-- Add new experiment entries below as phases progress -->

@@ -173,6 +173,8 @@ def test_signals_only_on_tradable_bars_with_target_in_session():
     out = eng.store.outcomes()
     assert len(out) == len(ts)
     assert out["in_band"].between(0, 1).all()
+    sc = eng.state()["scorecard"]
+    assert set(sc) == {"indicator", "always_up", "rsi_rule"} and sc["always_up"]["signals"] == len(out)
 
 
 def test_news_counts_from_the_bar_after_arrival():
