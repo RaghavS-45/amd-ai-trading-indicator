@@ -1,7 +1,7 @@
 # EXPERIMENTS.md
 # Experiment Log
 
-All experiments, including failures, are recorded here for the report.
+All experiments, including failures, are recorded here for the report. One-table summary of every run: `report/experiment_log.md` (from `report/experiment_log.csv`, rendered by `src/make_log_table.py`).
 Date format: YYYY-MM-DD.
 
 ---
