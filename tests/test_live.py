@@ -132,6 +132,15 @@ def test_no_repainting_step_by_step_equals_after_the_fact():
     pd.testing.assert_frame_equal(a[["ts"] + VALUE_COLS], b[["ts"] + VALUE_COLS])
 
 
+def test_review_scores_every_signal_live_skips_late_ones():
+    eng = _run(FakeSource(), Store(":memory:"), at_once=True)
+    assert eng.state()["record"]["scored"] == 0 and eng.state()["scorecard"] == {}
+    eng.review = True
+    st = eng.state()
+    assert st["record"]["scored"] == len(eng.store.outcomes()) > 0 and st["record"]["review"]
+    assert st["scorecard"]["always_up"]["signals"] == st["record"]["scored"]
+
+
 def test_late_bar_is_ignored_and_signals_unchanged():
     ts = CAL.session_open(DAY) + pd.Timedelta(minutes=40)
     raw = {s: d.copy() for s, d in RAW.items()}

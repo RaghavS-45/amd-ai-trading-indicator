@@ -120,6 +120,7 @@ class Runner:
             else:
                 if review is None or review.day != day:
                     review = Engine(source, Store(":memory:"), self.model, utc_now)
+                    review.review = True
                     self._run(lambda: review.open_session(day))
                     self._run(lambda: review.step(review.last_bar))
                 self.publish(review)

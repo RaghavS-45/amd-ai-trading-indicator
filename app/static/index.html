@@ -113,7 +113,7 @@ footer { padding: 0 16px 20px; font-size: 12px; color: var(--ink-2); }
       <div class="news" id="news"></div>
     </div>
     <div class="card">
-      <h2>Direction scorecard, this session</h2>
+      <h2>Direction scorecard, <span id="scorewhen">this session</span></h2>
       <table class="score">
         <thead><tr><th></th><th>Signals</th><th>Right</th><th>Trades</th><th>Profit</th></tr></thead>
         <tbody id="score"><tr><td colspan="5" class="muted">none yet</td></tr></tbody>
@@ -121,7 +121,7 @@ footer { padding: 0 16px 20px; font-size: 12px; color: var(--ink-2); }
       <div class="note" id="scorenote"></div>
     </div>
     <div class="card">
-      <h2>Range track record, this session</h2>
+      <h2>Range track record, <span id="recwhen">this session</span></h2>
       <div class="row"><span>Inside the 80% range</span><span class="v" id="recband">–</span></div>
       <div class="row"><span>Inside the typical move</span><span class="v" id="rectyp">–</span></div>
       <div class="note" id="recnote">Scored on IEX closes 10 minutes later. Signals made late (after a restart) are not counted.</div>
@@ -158,6 +158,7 @@ candles.priceScale().applyOptions({ scaleMargins: { top: 0.05, bottom: 0.14 } })
 const t = iso => secs(iso) + offset;
 const dirOf = g => g.lean === 'weak up' ? 1 : g.lean === 'weak down' ? -1 : 0;
 const confOf = g => { const s = g.p_up + g.p_down; return s > 0 ? Math.max(g.p_up, g.p_down) / s : 0.5; };
+const REVIEW = 'Review of a past session: every signal is scored. Each was recomputed after the close from the data available at its own minute only (the same results as live), but none was shown live.';
 const NAMES = { indicator: 'Our indicator', always_up: 'Always Up', rsi_rule: 'RSI rule' };
 const etClock = iso => new Date((secs(iso) + offset) * 1000).toISOString().slice(11, 16);
 const money = x => '$' + x.toFixed(2);
@@ -190,6 +191,8 @@ function render(s) {
   const news = s.news.map(n => ({ time: t(n.time), position: 'aboveBar', color: css('--news'),
     shape: 'circle', text: 'N' }));
   candles.setMarkers(arrows.concat(news).filter(m => barTimes.has(m.time)).sort((a, b) => a.time - b.time));
+  $('scorewhen').textContent = s.record.review ? `review of ${s.session}` : 'this session';
+  $('recwhen').textContent = $('scorewhen').textContent;
   renderScore(s);
   if (bars.length) {
     const last = s.bars[s.bars.length - 1];
@@ -199,8 +202,8 @@ function render(s) {
   const r = s.record;
   $('recband').textContent = r.scored ? `${r.in_band} of ${r.scored} (${Math.round(100 * r.in_band / r.scored)}%) · target 80%` : 'none yet';
   $('rectyp').textContent = r.scored ? `${r.in_typical} of ${r.scored} (${Math.round(100 * r.in_typical / r.scored)}%) · target 50%` : 'none yet';
-  $('recnote').textContent = 'Scored on IEX closes 10 minutes later.' +
-    (r.late_signals ? ` ${r.late_signals} signals made late (computed after the fact) are not counted.` : '');
+  $('recnote').textContent = 'Scored on IEX closes 10 minutes later. ' + (r.review ? REVIEW :
+    (r.late_signals ? `${r.late_signals} signals made late (computed after the fact) are not counted.` : ''));
   $('foot').textContent = `Model ${s.model.id}, trained on data up to ${s.model.train_end}. ` +
     'Move size: HAR model (Corsi 2009) with time of day. Direction: logistic regression. ' +
     'Paper trading and study use only. Not financial advice.';
@@ -209,7 +212,7 @@ function render(s) {
 
 function renderScore(s) {
   const sc = s.scorecard || {};
-  if (!sc.indicator) return;
+  if (!sc.indicator) { $('score').innerHTML = '<tr><td colspan="5" class="muted">none yet</td></tr>'; return; }
   const usd = x => (x >= 0 ? '+$' : '−$') + Math.abs(x).toFixed(2);
   $('score').innerHTML = ['indicator', 'always_up', 'rsi_rule'].map(k => { const r = sc[k];
     const acc = r.signals ? `${r.correct} (${Math.round(100 * r.accuracy)}%)` : '–';
@@ -219,7 +222,8 @@ function renderScore(s) {
   const c = s.costs;
   $('scorenote').textContent = '"Right" means the price 10 minutes later moved the way the signal said. Profit is after costs, on paper trades: ' +
     `${c.shares} shares, held 10 minutes, one at a time, $${(2 * c.per_share_each_way).toFixed(2)}/share round-trip cost. ` +
-    'Scored on IEX closes; signals made late are not counted. One day is a small sample, so a few lucky trades move these numbers a lot.';
+    'Scored on IEX closes. ' + (s.record.review ? REVIEW : 'Signals made late are not counted.') +
+    ' One day is a small sample, so a few lucky trades move these numbers a lot.';
 }
 
 function showSignal(ts) {

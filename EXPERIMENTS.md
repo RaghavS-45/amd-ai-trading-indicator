@@ -942,6 +942,14 @@ check in `tests/test_live.py`; 111 pass.
 training period, so its numbers say nothing about skill. The live scorecard scores on IEX closes;
 Phase 6 must score the same signals on SIP with next-open entry (`tradable.py`).
 
+*Review scoring (added the same day):* when the market is closed, the page recomputes the last session
+in memory. Every such signal is "late", so the scorecard was empty. A review now scores every signal,
+labelled as a review. This is fair because each signal uses only bars up to its own minute (no
+repainting test, parity check); live mode still drops late signals. Review of 2026-11-06 (after the
+training period, IEX closes), for the record only: indicator 48 of 101 right (48%), −$123.05 on 20
+trades; always Up 185 of 350 (53%), −$111.10 on 35; RSI rule 34 of 67 (51%), −$85.35 on 17. 80% range
+300 of 350 (86%), typical move 182 of 350 (52%). As expected, no direction edge, and the ranges held.
+
 ---
 
 <!-- Add new experiment entries below as phases progress -->

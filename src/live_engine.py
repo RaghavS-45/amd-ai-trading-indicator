@@ -57,6 +57,7 @@ class Engine:
         self.source, self.store, self.model, self.clock = source, store, model, clock
         self.model_id = model_id()
         self.day = None
+        self.review = False   # a past session recomputed after the close: score every signal
 
     # ── session setup ───────────────────────────────────────────────
     def open_session(self, day) -> None:
@@ -190,7 +191,7 @@ class Engine:
         out = self.store.outcomes(self.session)
         news = sorted(({"time": _iso(a["bar"] - ONE), "headline": a["headline"], "source": a["source"]}
                        for a in self.news.values() if a["bar"] >= self.open_utc), key=lambda a: a["time"])
-        live = sig[sig["late"] == 0]
+        live = sig if self.review else sig[sig["late"] == 0]
         scored = out[out["ts"].isin(set(live["ts"]))]
         rsi = self.feat["rsi"].rename(index=_iso) if self.feat is not None else pd.Series(dtype=float)
         graded = scored.merge(live[["ts", "close", "lean"]], on="ts").assign(rsi=lambda d: d["ts"].map(rsi))
@@ -206,7 +207,7 @@ class Engine:
             "news": news,
             "record": {"scored": int(len(scored)), "in_band": int(scored["in_band"].sum()),
                        "in_typical": int(scored["in_typical"].sum()),
-                       "late_signals": int((sig["late"] == 1).sum())},
+                       "late_signals": int((sig["late"] == 1).sum()), "review": self.review},
             "scorecard": scorecard(graded),
             "costs": {"shares": CFG["shares_per_trade"],
                       "per_share_each_way": CFG["fee_per_share"] + CFG["slippage_per_share"]},
