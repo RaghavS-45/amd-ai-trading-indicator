@@ -11,6 +11,7 @@ RUN pip install --no-cache-dir --user -r requirements-app.txt
 COPY --chown=user config.yaml ./
 COPY --chown=user src ./src
 COPY --chown=user app ./app
+COPY --chown=user report/experiment_log.csv ./report/
 COPY --chown=user models/live_model.joblib models/live_model_info.json ./models/
 ENV PORT=10000
 EXPOSE 10000

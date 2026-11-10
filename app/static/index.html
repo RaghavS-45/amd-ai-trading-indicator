@@ -4,321 +4,202 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AMD 10-Minute Indicator</title>
+<meta name="description" content="Live forecast of AMD's next 10 minutes: expected move size, an 80% range, an honest direction lean, and a public track record.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232a6fd6'/%3E%3Cpath d='M6 22l6-7 5 4 9-11' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
-<style>
-:root {
-  --bg: #f7f7f5; --surface: #ffffff; --ink: #151514; --ink-2: #5d5c58; --line: #e4e3df;
-  --up: #1f8a70; --down: #c8553d; --band: #2a6fd6; --band-soft: rgba(42,111,214,0.10);
-  --calm: #1f8a70; --normal: #6b6a66; --busy: #c8553d; --warn-bg: #fdf0e9; --news: #8a5cd6;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #121211; --surface: #1b1b1a; --ink: #ecebe7; --ink-2: #a3a29d; --line: #2e2e2c;
-    --up: #3fb894; --down: #e07a62; --band: #6ea1f2; --band-soft: rgba(110,161,242,0.12);
-    --calm: #3fb894; --normal: #a3a29d; --busy: #e07a62; --warn-bg: #3a2620; --news: #b08cf0;
-  }
-}
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--ink);
-  font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; padding: 14px 16px 10px; }
-header h1 { font-size: 18px; margin: 0; font-weight: 650; }
-.price { font-size: 22px; font-weight: 650; font-variant-numeric: tabular-nums; }
-.muted { color: var(--ink-2); }
-.chip { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600;
-  border: 1px solid var(--line); background: var(--surface); }
-.chip.live { color: var(--up); border-color: var(--up); }
-.chip.review, .chip.replay { color: var(--band); border-color: var(--band); }
-.chip.error { color: var(--down); border-color: var(--down); }
-select#day { font: inherit; font-size: 13px; color: var(--ink); background: var(--surface);
-  border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; }
-table.score tr.liverow td { color: var(--ink-2); }
-main { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 12px; padding: 0 16px 16px; }
-@media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); } }
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
-#chart { height: 560px; padding: 0; overflow: hidden; }
-@media (max-width: 900px) { #chart { height: 380px; } }
-.panel { display: flex; flex-direction: column; gap: 12px; }
-h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-2); margin: 0 0 8px; font-weight: 600; }
-.row { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; }
-.row .v { font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
-.big { font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; }
-.level { font-weight: 700; text-transform: uppercase; }
-.level.calm { color: var(--calm); } .level.normal { color: var(--normal); } .level.busy { color: var(--busy); }
-.warn { background: var(--warn-bg); color: var(--busy); border-radius: 8px; padding: 6px 10px; font-weight: 600; margin-top: 6px; }
-.bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin: 6px 0 4px; background: var(--line); }
-.bar span { display: block; height: 100%; }
-.note { font-size: 12px; color: var(--ink-2); margin-top: 6px; }
-.news a, .news div { display: block; padding: 4px 0; border-top: 1px solid var(--line); font-size: 13px; }
-.news div:first-child { border-top: 0; }
-.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--ink-2); padding: 8px 2px 0; }
-.legend i { display: inline-block; width: 18px; height: 0; border-top: 2px dashed var(--band); vertical-align: middle; margin-right: 4px; }
-.legend i.typ { border-top: 1px dotted var(--band); }
-.legend i.news { width: 8px; height: 8px; border: 0; border-radius: 50%; background: var(--news); }
-#viewing { display: none; }
-button { font: inherit; font-size: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
-  border-radius: 6px; padding: 2px 8px; cursor: pointer; }
-.dir { font-size: 22px; font-weight: 750; letter-spacing: .02em; }
-.dir.up { color: var(--up); } .dir.down { color: var(--down); } .dir.none { color: var(--ink-2); font-size: 18px; }
-table.score { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
-table.score th { text-align: right; font-weight: 600; color: var(--ink-2); font-size: 11px; padding: 2px 0 4px 10px; vertical-align: bottom; }
-table.score td { text-align: right; padding: 4px 0 4px 10px; border-top: 1px solid var(--line); white-space: nowrap; }
-table.score th:first-child, table.score td:first-child { text-align: left; }
-table.score tr.ours td { font-weight: 650; }
-.pos { color: var(--up); } .neg { color: var(--down); }
-.legend i.dirsq { width: 10px; height: 10px; border: 0; background: var(--up); margin-right: 1px; }
-.legend i.dirsq.dn { background: var(--down); margin-right: 4px; }
-footer { padding: 0 16px 20px; font-size: 12px; color: var(--ink-2); }
-</style>
+<link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-<header>
-  <h1>AMD · next 10 minutes</h1>
-  <span class="price" id="price">–</span>
-  <span class="muted" id="asof"></span>
-  <span class="chip" id="mode">connecting…</span>
-  <select id="day" aria-label="Session to show"><option value="">Latest session</option></select>
-  <span class="muted" id="statusmsg"></span>
-</header>
-<main>
-  <div>
-    <div class="card" id="chart"></div>
-    <div class="legend">
-      <span><i></i>80% range for the close 10 minutes later</span>
-      <span><i class="typ"></i>typical move (half of moves are smaller)</span>
-      <span><i class="dirsq"></i><i class="dirsq dn"></i>arrows and bottom strip: direction signal (grey = no clear signal)</span>
-      <span><i class="news"></i>news tagged AMD</span>
-      <span>Grey candles: no IEX trade that minute (filled flat)</span>
+<div class="shell">
+  <aside class="side">
+    <a class="brand" href="#live">
+      <span class="logo" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M6 22l6-7 5 4 9-11"/></svg></span>
+      <span><b>AMD</b><small>10-minute indicator</small></span>
+    </a>
+    <nav class="nav" aria-label="Pages">
+      <a href="#live" data-page="live"><svg viewBox="0 0 24 24"><path d="M3 17l5-6 4 3 8-9"/><path d="M3 21h18"/></svg>Live</a>
+      <a href="#history" data-page="history"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>History</a>
+      <a href="#performance" data-page="performance"><svg viewBox="0 0 24 24"><path d="M5 20V11M12 20V5M19 20v-6"/></svg>Performance</a>
+      <a href="#guide" data-page="guide"><svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2z"/><path d="M4 19V5"/></svg>How to read</a>
+    </nav>
+    <div class="side-foot">
+      <div class="status"><span class="dot" id="statusdot"></span><span id="statustext">connecting…</span></div>
+      <div class="clock" id="market">–</div>
+      <div class="clock muted" id="clocks"></div>
+      <button class="themebtn" id="theme" type="button" aria-label="Switch light or dark theme">◐ Theme</button>
     </div>
-  </div>
-  <div class="panel">
-    <div class="card">
-      <h2>Next 10 minutes <span id="viewing">· <span id="viewtime"></span> <button id="latest">latest</button></span></h2>
-      <div class="row"><span>Typical move</span><span class="v big" id="typical">–</span></div>
-      <div class="row"><span>80% range</span><span class="v" id="band">–</span></div>
-      <div class="row"><span>Activity</span><span class="v"><span class="level" id="level">–</span> <span class="muted" id="activity"></span></span></div>
-      <div id="warning"></div>
-      <div id="outcome" class="note"></div>
-    </div>
-    <div class="card">
-      <h2>Direction</h2>
-      <div class="row"><span class="dir none" id="dir">–</span><span class="v muted" id="dirconf"></span></div>
-      <div class="bar"><span id="pdown" style="background:var(--down)"></span><span id="pflat" style="background:var(--line)"></span><span id="pup" style="background:var(--up)"></span></div>
-      <div class="row muted"><span id="pdowntxt">down –</span><span id="pfltxt">flat –</span><span id="puptxt">up –</span></div>
-      <div class="note">Confidence is the model's own estimate that the price ends up rather than down (or the reverse); a signal shows only when it is clearly away from 50%. In testing on 2023–2026 data, confident signals were right about 50% of the time: treat them as a weak hint and rely on the range above.</div>
-    </div>
-    <div class="card">
-      <h2>Context</h2>
-      <div class="row"><span>QQQ, last 10 min</span><span class="v" id="qqq">–</span></div>
-      <div class="row"><span>NVDA, last 10 min</span><span class="v" id="nvda">–</span></div>
-      <div class="row"><span>Headlines naming AMD, last 30 min</span><span class="v" id="news30">–</span></div>
-      <div class="row"><span>Minutes without IEX trades (last 30)</span><span class="v" id="filled">–</span></div>
-      <div class="note">Latest headlines tagged AMD by the news feed:</div>
-      <div class="news" id="news"></div>
-    </div>
-    <div class="card">
-      <h2>Direction scorecard, <span id="scorewhen">this session</span></h2>
-      <table class="score">
-        <thead><tr><th></th><th>Signals</th><th>Right</th><th>Trades</th><th>Profit</th></tr></thead>
-        <tbody id="score"><tr><td colspan="5" class="muted">none yet</td></tr></tbody>
-      </table>
-      <div class="note" id="scorenote"></div>
-    </div>
-    <div class="card">
-      <h2>Range track record, <span id="recwhen">this session</span></h2>
-      <div class="row"><span>Inside the 80% range</span><span class="v" id="recband">–</span></div>
-      <div class="row"><span>Inside the typical move</span><span class="v" id="rectyp">–</span></div>
-      <div class="note" id="reclive"></div>
-      <div class="note" id="recnote">Scored on IEX closes 10 minutes later. Signals made late (after a restart) are not counted.</div>
-    </div>
-  </div>
-</main>
-<footer id="foot">Paper trading and study use only. Not financial advice.</footer>
-<script>
-const $ = id => document.getElementById(id);
-const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-const secs = iso => Date.parse(iso) / 1000;
-let offset = 0, state = null, pinned = null;
+  </aside>
 
-const chart = LightweightCharts.createChart($('chart'), {
-  autoSize: true,
-  layout: { background: { color: 'transparent' }, textColor: css('--ink-2'), fontSize: 11 },
-  grid: { vertLines: { color: css('--line') }, horzLines: { color: css('--line') } },
-  rightPriceScale: { borderColor: css('--line') },
-  timeScale: { borderColor: css('--line'), timeVisible: true, secondsVisible: false, rightOffset: 4 },
-  crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-});
-const candles = chart.addCandlestickSeries({ upColor: css('--up'), downColor: css('--down'),
-  borderVisible: false, wickUpColor: css('--up'), wickDownColor: css('--down') });
-const line = (style, width) => chart.addLineSeries({ color: css('--band'), lineWidth: width, lineStyle: style,
-  priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
-const bandHi = line(LightweightCharts.LineStyle.Dashed, 2), bandLo = line(LightweightCharts.LineStyle.Dashed, 2);
-const typHi = line(LightweightCharts.LineStyle.Dotted, 1), typLo = line(LightweightCharts.LineStyle.Dotted, 1);
-[typHi, typLo].forEach(x => x.applyOptions({ color: css('--band-soft').replace('0.10', '0.55').replace('0.12', '0.55') }));
+  <main>
+    <!-- ── LIVE ─────────────────────────────────────────── -->
+    <section class="page" id="page-live">
+      <header class="pagehead">
+        <div>
+          <h1>AMD · next 10 minutes</h1>
+          <p class="muted" id="live-msg"></p>
+        </div>
+        <div class="pricebox">
+          <span class="price" id="live-price">–</span>
+          <span class="chg" id="live-chg"></span>
+          <span class="muted small" id="live-asof"></span>
+        </div>
+      </header>
 
-const dirStrip = chart.addHistogramSeries({ priceScaleId: 'dir', priceLineVisible: false, lastValueVisible: false });
-chart.priceScale('dir').applyOptions({ scaleMargins: { top: 0.9, bottom: 0 }, visible: false });
-candles.priceScale().applyOptions({ scaleMargins: { top: 0.05, bottom: 0.14 } });
+      <div class="kpis" id="live-kpis"></div>
 
-const t = iso => secs(iso) + offset;
-const dirOf = g => g.lean === 'weak up' ? 1 : g.lean === 'weak down' ? -1 : 0;
-const confOf = g => { const s = g.p_up + g.p_down; return s > 0 ? Math.max(g.p_up, g.p_down) / s : 0.5; };
-const REVIEW = 'Review of a past session: every signal is scored. Each was recomputed after the close from the data available at its own minute only (the same results as live), but none was shown live.';
-const NAMES = { indicator: 'Our indicator', always_up: 'Always Up', rsi_rule: 'RSI rule' };
-const etClock = iso => new Date((secs(iso) + offset) * 1000).toISOString().slice(11, 16);
-const money = x => '$' + x.toFixed(2);
-const pct = (x, d = 2) => (x >= 0 ? '+' : '') + (x * 100).toFixed(d) + '%';
+      <div class="grid2">
+        <div class="card chartcard">
+          <div class="chart" id="live-chart"></div>
+          <div class="legend">
+            <span><i class="lg band"></i>80% range</span>
+            <span><i class="lg typ"></i>typical move</span>
+            <span><i class="lg up"></i><i class="lg dn"></i>direction signal</span>
+            <span><i class="lg news"></i>news</span>
+            <span><i class="lg grey"></i>no IEX trade that minute</span>
+          </div>
+          <p class="hint">Zoom: + / − buttons, pinch, or Ctrl/⌘ + scroll. Move: drag or swipe sideways. Click a candle to see that minute's forecast.</p>
+        </div>
+        <div class="stack" id="live-panel"></div>
+      </div>
 
-function render(s) {
-  state = s;
-  const st = s.status || {};
-  const chip = $('mode');
-  chip.className = 'chip ' + (st.error ? 'error' : st.mode === 'replay' ? 'replay' : st.review ? 'review' : 'live');
-  chip.textContent = st.error ? 'error' : st.mode === 'replay' ? 'REPLAY' : st.review ? 'REVIEW' : 'LIVE';
-  $('statusmsg').textContent = st.error ? st.error : (st.message || '');
-  if (!s.session) return;
-  offset = s.et_offset_seconds;
-  const bars = s.bars.map(b => ({ time: t(b.time), open: b.open, high: b.high, low: b.low, close: b.close,
-    ...(b.filled ? { color: css('--ink-2'), wickColor: css('--ink-2') } : {}) }));
-  candles.setData(bars);
-  const h = s.horizon_minutes * 60;
-  const at = (k) => s.signals.map(g => ({ time: t(g.ts) + h, value: g[k] }));
-  bandHi.setData(at('band_hi')); bandLo.setData(at('band_lo'));
-  typHi.setData(at('typical_hi')); typLo.setData(at('typical_lo'));
-  const barTimes = new Set(bars.map(b => b.time));
-  const withP = s.signals.filter(g => g.p_up != null);
-  dirStrip.setData(withP.map(g => { const d = dirOf(g);
-    return { time: t(g.ts), value: Math.max(confOf(g) - 0.5, 0.01),
-      color: d > 0 ? css('--up') : d < 0 ? css('--down') : css('--line') }; }));
-  const arrows = withP.filter(g => dirOf(g) !== 0).map(g => dirOf(g) > 0
-    ? { time: t(g.ts), position: 'belowBar', color: css('--up'), shape: 'arrowUp' }
-    : { time: t(g.ts), position: 'aboveBar', color: css('--down'), shape: 'arrowDown' });
-  const news = s.news.map(n => ({ time: t(n.time), position: 'aboveBar', color: css('--news'),
-    shape: 'circle', text: 'N' }));
-  candles.setMarkers(arrows.concat(news).filter(m => barTimes.has(m.time)).sort((a, b) => a.time - b.time));
-  $('scorewhen').textContent = s.record.review ? `review of ${s.session}` : `live, ${s.session}`;
-  $('recwhen').textContent = $('scorewhen').textContent;
-  renderScore(s);
-  if (bars.length) {
-    const last = s.bars[s.bars.length - 1];
-    $('price').textContent = money(last.close);
-    $('asof').textContent = `${s.session} · bar ${etClock(last.time)} ET`;
-  }
-  const r = s.record;
-  $('recband').textContent = r.scored ? `${r.in_band} of ${r.scored} (${Math.round(100 * r.in_band / r.scored)}%) · target 80%` : 'none yet';
-  $('rectyp').textContent = r.scored ? `${r.in_typical} of ${r.scored} (${Math.round(100 * r.in_typical / r.scored)}%) · target 50%` : 'none yet';
-  const lr = s.live_record;
-  $('reclive').textContent = lr && lr.record.scored ? `Shown live that day (${etClock(lr.first)}–${etClock(lr.last)} ET): ` +
-    `${lr.record.in_band} of ${lr.record.scored} inside the 80% range (${Math.round(100 * lr.record.in_band / lr.record.scored)}%), ` +
-    `${lr.record.in_typical} inside the typical move (${Math.round(100 * lr.record.in_typical / lr.record.scored)}%).` : '';
-  $('recnote').textContent = 'Scored on IEX closes 10 minutes later. ' + (r.review ? REVIEW :
-    (r.late_signals ? `${r.late_signals} signals made late (computed after the fact) are not counted.` : ''));
-  $('foot').textContent = `Model ${s.model.id}, trained on data up to ${s.model.train_end}. ` +
-    'Move size: HAR model (Corsi 2009) with time of day. Direction: logistic regression. ' +
-    'Paper trading and study use only. Not financial advice.';
-  showSignal(pinned);
-}
+      <div class="grid2 even">
+        <div class="card" id="live-score"></div>
+        <div class="card" id="live-range"></div>
+      </div>
+    </section>
 
-function renderScore(s) {
-  const sc = s.scorecard || {};
-  if (!sc.indicator) { $('score').innerHTML = '<tr><td colspan="5" class="muted">none yet</td></tr>'; return; }
-  const usd = x => (x >= 0 ? '+$' : '−$') + Math.abs(x).toFixed(2);
-  const rows = [['indicator', sc.indicator, NAMES.indicator], ['always_up', sc.always_up, NAMES.always_up],
-    ['rsi_rule', sc.rsi_rule, NAMES.rsi_rule]];
-  const lr = s.live_record;
-  if (lr) rows.splice(1, 0, ['live', lr.scorecard.indicator, `↳ shown live (${etClock(lr.first)}–${etClock(lr.last)} ET)`]);
-  $('score').innerHTML = rows.map(([k, r, name]) => {
-    const acc = r.signals ? `${r.correct} (${Math.round(100 * r.accuracy)}%)` : '–';
-    const pnl = r.trades ? `<span class="${r.pnl_usd >= 0 ? 'pos' : 'neg'}">${usd(r.pnl_usd)}</span>` : '–';
-    return `<tr class="${k === 'indicator' ? 'ours' : k === 'live' ? 'liverow' : ''}"><td>${name}</td><td>${r.signals}</td><td>${acc}</td>` +
-      `<td>${r.trades}</td><td>${pnl}</td></tr>`; }).join('');
-  const c = s.costs;
-  $('scorenote').textContent = '"Right" means the price 10 minutes later moved the way the signal said. Profit is after costs, on paper trades: ' +
-    `${c.shares} shares, held 10 minutes, one at a time, $${(2 * c.per_share_each_way).toFixed(2)}/share round-trip cost. ` +
-    'Scored on IEX closes. ' + (s.record.review ? REVIEW : 'Signals made late are not counted.') +
-    (lr ? ' The "shown live" row counts only the signals the app showed on time that day.' : '') +
-    ' One day is a small sample, so a few lucky trades move these numbers a lot.';
-}
+    <!-- ── HISTORY ──────────────────────────────────────── -->
+    <section class="page" id="page-history" hidden>
+      <header class="pagehead">
+        <div>
+          <h1>History</h1>
+          <p class="muted">Any finished trading day since 16 Oct 2026. Days marked “was live” also show what the app displayed at the time.</p>
+        </div>
+        <label class="picker">Day
+          <select id="hist-day"><option value="">loading…</option></select>
+        </label>
+      </header>
+      <p class="banner" id="hist-msg" hidden></p>
+      <div id="hist-body" hidden>
+        <div class="kpis" id="hist-kpis"></div>
+        <div class="grid2">
+          <div class="card chartcard">
+            <div class="chart" id="hist-chart"></div>
+            <p class="hint">Zoom: + / − buttons, pinch, or Ctrl/⌘ + scroll. Move: drag or swipe sideways. Click a candle (or a row below) to see that minute's forecast.</p>
+          </div>
+          <div class="stack" id="hist-panel"></div>
+        </div>
+        <div class="grid2 even">
+          <div class="card" id="hist-score"></div>
+          <div class="card" id="hist-range"></div>
+        </div>
+        <div class="card">
+          <div class="cardhead">
+            <h2>Every signal of the day</h2>
+            <div class="tools">
+              <label class="check"><input type="checkbox" id="hist-only"> only direction calls</label>
+              <button type="button" class="btn" id="hist-csv">Download CSV</button>
+            </div>
+          </div>
+          <div class="tablewrap tall"><table class="data" id="hist-table"></table></div>
+        </div>
+      </div>
+    </section>
 
-function showSignal(ts) {
-  if (!state || !state.signals.length) return;
-  const sig = (ts && state.signals.find(g => g.ts === ts)) || state.signals[state.signals.length - 1];
-  const isLatest = sig === state.signals[state.signals.length - 1];
-  $('viewing').style.display = isLatest ? 'none' : 'inline';
-  $('viewtime').textContent = `at ${etClock(sig.ts)} ET`;
-  const usd = sig.close * sig.typical_bps / 1e4;
-  $('typical').textContent = `±${money(usd)} (${(sig.typical_bps / 100).toFixed(2)}%)`;
-  $('band').textContent = `${money(sig.band_lo)} – ${money(sig.band_hi)}`;
-  const lv = $('level'); lv.textContent = sig.level; lv.className = 'level ' + sig.level;
-  $('activity').textContent = `${sig.activity.toFixed(1)}× normal for this time`;
-  $('warning').innerHTML = sig.warning ? '<div class="warn">Bigger moves than usual are likely</div>' : '';
-  const out = state.outcomes.find(o => o.ts === sig.ts);
-  $('outcome').textContent = out ? `What happened: ${(out.ret_bps / 100 >= 0 ? '+' : '')}${(out.ret_bps / 100).toFixed(2)}% by ${etClock(out.target_ts)} ET, ` +
-    (out.in_band ? 'inside the 80% range.' : 'outside the 80% range.') : 'Outcome known 10 minutes after this signal.';
-  if (sig.p_up == null) {
-    $('dir').textContent = 'warming up'; $('dir').className = 'dir none'; $('dirconf').textContent = '';
-    ['pdown', 'pflat', 'pup'].forEach(k => $(k).style.width = '0');
-  } else {
-    const d = dirOf(sig), conf = Math.round(100 * confOf(sig));
-    $('dir').textContent = d > 0 ? `▲ UP · ${conf}%` : d < 0 ? `▼ DOWN · ${conf}%` : 'No clear signal';
-    $('dir').className = 'dir ' + (d > 0 ? 'up' : d < 0 ? 'down' : 'none');
-    const pu = Math.round(100 * sig.p_up / (sig.p_up + sig.p_down));
-    $('dirconf').textContent = d ? 'confident signal' : `up/down ${pu}/${100 - pu}: too close to call`;
-    $('pdown').style.width = (100 * sig.p_down) + '%'; $('pflat').style.width = (100 * sig.p_flat) + '%';
-    $('pup').style.width = (100 * sig.p_up) + '%';
-    $('pdowntxt').textContent = `down ${Math.round(100 * sig.p_down)}%`;
-    $('pfltxt').textContent = `flat ${Math.round(100 * sig.p_flat)}%`;
-    $('puptxt').textContent = `up ${Math.round(100 * sig.p_up)}%`;
-  }
-  $('qqq').textContent = sig.qqq_ret_10 == null ? '–' : pct(sig.qqq_ret_10);
-  $('nvda').textContent = sig.nvda_ret_10 == null ? '–' : pct(sig.nvda_ret_10);
-  $('news30').textContent = sig.news_30;
-  $('filled').textContent = Math.round(sig.filled_30 * 30);
-  const until = secs(sig.ts) + 60;
-  const recent = state.news.filter(n => secs(n.time) < until).slice(-4).reverse();
-  $('news').innerHTML = recent.map(n => `<div><span class="muted">${etClock(n.time)}</span> ${escape(n.headline)}</div>`).join('');
-}
+    <!-- ── PERFORMANCE ──────────────────────────────────── -->
+    <section class="page" id="page-performance" hidden>
+      <header class="pagehead">
+        <div>
+          <h1>Performance</h1>
+          <p class="muted">What the indicator claims, how it was tested before going live, and how it has done live since.</p>
+        </div>
+      </header>
 
-function escape(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+      <h2 class="section">Live track record</h2>
+      <div class="kpis" id="perf-kpis"></div>
+      <div class="card">
+        <div class="tablewrap"><table class="data" id="perf-days"></table></div>
+        <p class="note" id="perf-note"></p>
+      </div>
 
-chart.subscribeClick(p => {
-  if (!p.time || !state) return;
-  const g = state.signals.find(x => t(x.ts) === p.time);
-  pinned = g ? g.ts : null; showSignal(pinned);
-});
-$('latest').onclick = () => { pinned = null; showSignal(null); };
+      <h2 class="section">Tested before going live</h2>
+      <div class="grid2 even">
+        <div class="card" id="perf-move"></div>
+        <div class="card" id="perf-dir"></div>
+      </div>
 
-let autoFit = true, gen = 0;
-['wheel', 'mousedown', 'touchstart'].forEach(e => $('chart').addEventListener(e, () => { autoFit = false; }, { passive: true }));
-async function poll(g) {
-  const day = $('day').value;
-  try {
-    const s = await (await fetch('/api/state' + (day ? '?day=' + day : ''))).json();
-    if (g !== gen) return;
-    render(s);
-    if (autoFit && s.bars && s.bars.length) chart.timeScale().fitContent();
-  } catch (e) { if (g !== gen) return; $('mode').textContent = 'offline'; $('mode').className = 'chip error'; }
-  setTimeout(() => poll(g), day ? 60000 : state && state.status && state.status.mode === 'replay' ? 1000 : 5000);
-}
-async function loadDays() {
-  try {
-    const { days } = await (await fetch('/api/days')).json();
-    const keep = $('day').value;
-    $('day').innerHTML = '<option value="">Latest session</option>' + days.map(d =>
-      `<option value="${d.day}">${d.day}${d.live ? ' · was live' : ''}</option>`).join('');
-    $('day').value = keep;
-  } catch (e) {}
-}
-$('day').onchange = () => {
-  gen++; pinned = null; autoFit = true; state = null;
-  [candles, bandHi, bandLo, typHi, typLo, dirStrip].forEach(x => x.setData([])); candles.setMarkers([]);
-  $('score').innerHTML = '<tr><td colspan="5" class="muted">loading…</td></tr>';
-  $('mode').className = 'chip'; $('mode').textContent = 'loading';
-  $('statusmsg').textContent = $('day').value ? `Recomputing ${$('day').value} (up to a minute the first time)…` : '';
-  poll(gen);
-};
-loadDays(); setInterval(loadDays, 600000);
-poll(gen);
-</script>
+      <h2 class="section">Every experiment</h2>
+      <div class="card">
+        <div class="cardhead">
+          <div class="chips" id="exp-filter">
+            <button type="button" data-f="all" class="on">All</button>
+            <button type="button" data-f="dir">Direction</button>
+            <button type="button" data-f="move">Move size</button>
+            <button type="button" data-f="live">Live checks</button>
+          </div>
+          <span class="muted small" id="exp-count"></span>
+        </div>
+        <div class="tablewrap"><table class="data exp" id="exp-table"></table></div>
+        <p class="note">Each run was judged against a pass rule fixed before it ran. Direction runs: accuracy (± day-clustered standard error) and mean profit per trade after costs in basis points (1 bp = 0.01%). Move-size runs: QLIKE loss (lower is better), R² and how often the price stayed inside the 80% range. “Fresh” = 2023–2024, years no design choice had seen.</p>
+      </div>
+    </section>
+
+    <!-- ── GUIDE ────────────────────────────────────────── -->
+    <section class="page" id="page-guide" hidden>
+      <header class="pagehead">
+        <div>
+          <h1>How to read the indicator</h1>
+          <p class="muted">Two minutes to read: what each number means, and when not to trust it.</p>
+        </div>
+      </header>
+      <div class="guide">
+        <div class="card">
+          <h2>What it answers</h2>
+          <p>Every minute, after a 1-minute candle closes, the indicator answers one question: <b>how far is AMD likely to move in the next 10 minutes?</b> It also gives a weak hint about the direction, and shows what the market and the news are doing.</p>
+          <p>It does <b>not</b> tell you to buy or sell. It is a study tool for paper trading.</p>
+        </div>
+        <div class="card">
+          <h2>The numbers</h2>
+          <dl class="defs">
+            <dt>Typical move</dt><dd>Half of 10-minute moves are smaller than this, half are bigger. “±$1.80” means a normal move from here is about $1.80 either way.</dd>
+            <dt>80% range</dt><dd>The price 10 minutes later should land inside this range about 8 times out of 10. On the chart it is the dashed band, drawn ten minutes ahead of each candle.</dd>
+            <dt>Activity</dt><dd>How busy the market is compared with a normal day at the same time: <b>calm</b>, <b>normal</b> or <b>busy</b>. “Bigger moves than usual are likely” appears when it is far above normal.</dd>
+            <dt>Direction</dt><dd>▲ UP or ▼ DOWN with a confidence, shown only when the model leans clearly one way; otherwise “No clear signal”. Tested on 2023–2026 data, these calls were right about 50% of the time: treat them as a weak hint.</dd>
+            <dt>Context</dt><dd>What QQQ (big tech) and NVDA (a chip peer) did in the last 10 minutes, how many AMD headlines came out, and how many recent minutes had no trades on the free data feed.</dd>
+          </dl>
+        </div>
+        <div class="card">
+          <h2>When not to trust it</h2>
+          <ul class="ticks">
+            <li><b>The first half hour.</b> Forecasts start at 10:03 New York time (<span class="localtime" data-et="10:03">–</span> your time): the opening minutes are too wild and some inputs need 30 minutes of data.</li>
+            <li><b>Earnings and big news.</b> Moves are far larger than usual and the range is missed more often (5 Nov 2026: 73% inside the 80% range).</li>
+            <li><b>Many quiet minutes.</b> The free IEX feed sees only part of the market. If “minutes without IEX trades” is high, the chart is less reliable.</li>
+            <li><b>Direction alone.</b> No direction model we tested beat always guessing “Up” in an honest test. Never act on the arrow by itself.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h2>Why you can trust the record</h2>
+          <ul class="ticks">
+            <li><b>No repainting.</b> A signal is made only after its candle closes, written once to a database that refuses edits, and never changed.</li>
+            <li><b>Late signals are marked.</b> If the app was down and catches up, those signals are labelled late and not counted in the live score.</li>
+            <li><b>Outside copy.</b> Every 5 minutes the record is also saved to a separate, dated store.</li>
+            <li><b>Same code as testing.</b> The live app uses the exact feature code and the frozen model that were tested on training data only (up to 30 June 2026).</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h2>Market hours</h2>
+          <p>New York 9:30 am – 4:00 pm, Monday to Friday (<span class="localtime" data-et="09:30">–</span> – <span class="localtime" data-et="16:00">–</span> your time). Outside these hours the Live page shows the last session, recomputed after the close and marked <b>REVIEW</b>.</p>
+        </div>
+        <div class="card">
+          <h2>The models, in one line each</h2>
+          <p><b>Move size:</b> HAR model (Corsi, 2009) adapted to 10 minutes: a weighted mix of how jumpy AMD was recently. <span id="guide-weights"></span></p>
+          <p><b>Direction:</b> logistic regression on 32 price, market and intraday inputs. <b>Data:</b> Alpaca's free IEX feed, 1-minute bars.</p>
+          <p class="muted small">Paper trading and study use only. Not financial advice.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<script src="/static/app.js"></script>
 </body>
 </html>

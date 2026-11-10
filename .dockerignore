@@ -3,7 +3,8 @@
 .git
 .venv
 data
-report
+report/*
+!report/experiment_log.csv
 notebooks
 app/signals.db
 __pycache__

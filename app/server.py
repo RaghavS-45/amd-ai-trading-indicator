@@ -23,15 +23,20 @@ from collections import OrderedDict
 from pathlib import Path
 from typing import Optional
 
+import json
+
 import pandas as pd
 import yaml
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from live_engine import CAL, ONE, Engine  # noqa: E402
+from features import _rsi  # noqa: E402
+from live_engine import ASSET, CAL, ONE, Engine  # noqa: E402
+from live_score import scorecard  # noqa: E402
 from live_model import load_model  # noqa: E402
 import record_sync  # noqa: E402
 from signal_store import Store  # noqa: E402
@@ -53,6 +58,14 @@ def latest_session(now: pd.Timestamp) -> pd.Timestamp:
     return CAL.date_to_session(day, "previous") if not CAL.is_session(day) else CAL.previous_session(day)
 
 
+def market_hours(now: pd.Timestamp) -> dict:
+    day = latest_session(now)
+    is_open = CAL.session_open(day) <= now < CAL.session_close(day)
+    nxt = CAL.next_open(now)
+    return {"open_now": bool(is_open), "closes": CAL.session_close(day).isoformat() if is_open else None,
+            "next_open": nxt.isoformat()}
+
+
 class Runner:
     def __init__(self, mode: str):
         self.mode = mode
@@ -69,7 +82,8 @@ class Runner:
         threading.Thread(target=target, daemon=True).start()
 
     def state(self) -> dict:
-        return dict(self.snapshot, status=dict(self.status, server_time=utc_now().isoformat()))
+        return dict(self.snapshot, status=dict(self.status, server_time=utc_now().isoformat()),
+                    market=market_hours(utc_now()))
 
     def publish(self, engine):
         self.current = engine
@@ -147,6 +161,37 @@ class Runner:
             self.past.move_to_end(day)
             return self.past[day]
 
+    # ── track record over every live day ────────────────────────────
+    def performance(self) -> dict:
+        """On-time signals of every day the app ran live, scored as on the page (from SQLite only)."""
+        if self.store is None:
+            return {"days": [], "total": None}
+        with self.lock:
+            sig, out = self.store.signals(), self.store.outcomes()
+            bars = {d: self.store.bars(d) for d in sig["session"].unique()}
+        sig = sig[sig["late"] == 0]
+        days, graded = [], []
+        for day, s in sig.groupby("session"):
+            b = bars[day]
+            close = b[b["symbol"] == ASSET].set_index(pd.to_datetime(b.loc[b["symbol"] == ASSET, "ts"], utc=True))["close"]
+            grid = pd.date_range(CAL.session_open(pd.Timestamp(day)), close.index.max(), freq="1min")
+            rsi = _rsi(close.reindex(grid).ffill(), CFG["rsi_period"])   # quiet minutes filled flat, as build_grid
+            rsi.index = grid.strftime("%Y-%m-%dT%H:%M:%SZ")
+            scored = out[out["ts"].isin(set(s["ts"]))]
+            g = scored.merge(s[["ts", "close", "lean"]], on="ts").assign(rsi=lambda d: d["ts"].map(rsi))
+            graded.append(g)
+            days.append({"day": day, "first": s["ts"].iloc[0], "last": s["ts"].iloc[-1], "signals": int(len(s)),
+                         "scored": int(len(g)), "in_band": int(g["in_band"].sum()),
+                         "in_typical": int(g["in_typical"].sum()), "scorecard": scorecard(g)})
+        if not days:
+            return {"days": [], "total": None}
+        g = pd.concat(graded)
+        total = {"scored": int(len(g)), "in_band": int(g["in_band"].sum()), "in_typical": int(g["in_typical"].sum()),
+                 "signals": int(sum(d["signals"] for d in days)), "scorecard": scorecard(g)}
+        return {"days": days[::-1], "total": total,
+                "costs": {"shares": CFG["shares_per_trade"],
+                          "per_share_each_way": CFG["fee_per_share"] + CFG["slippage_per_share"]}}
+
     # ── live ────────────────────────────────────────────────────────
     def _live(self):
         from live_sources import AlpacaSource
@@ -205,6 +250,39 @@ def api_state(day: Optional[str] = None):
 @app.api_route("/api/days", methods=["GET", "HEAD"])   # HEAD: uptime monitors
 def api_days():
     return runner.days()
+
+
+@app.get("/api/performance")
+def api_performance():
+    return runner.performance()
+
+
+@app.get("/api/experiments")
+def api_experiments():
+    log = pd.read_csv(ROOT / "report" / "experiment_log.csv", dtype=str).fillna("")
+    return {"runs": log.to_dict("records")}
+
+
+@app.get("/api/model")
+def api_model():
+    info = json.loads((ROOT / CFG["live_info_path"]).read_text())
+    return {"train_end": info["train_end"], "move": {k: info["move"][k] for k in
+                                                     ("columns", "coef", "rows", "first_day", "last_day")},
+            "lean": {k: info["lean"][k] for k in ("rows", "first_day", "last_day")},
+            "lean_features": len(info["lean"]["columns"]),
+            "band_coverage": CFG["band_coverage"], "typical_coverage": CFG["typical_coverage"],
+            "horizon_minutes": CFG["horizon_bars"], "drop_open_mins": CFG["drop_open_mins"]}
+
+
+@app.middleware("http")
+async def _revalidate(request, call_next):   # pages and scripts always fresh after a redeploy
+    response = await call_next(request)
+    if not request.url.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
+app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
 @app.api_route("/", methods=["GET", "HEAD"])
