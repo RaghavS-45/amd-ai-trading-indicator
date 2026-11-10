@@ -33,6 +33,8 @@ body { background: var(--bg); color: var(--ink);
 .muted { color: var(--ink-2); }
 .small { font-size: 12px; }
 b { font-weight: 650; }
+a { color: var(--accent); }
+a:hover { text-decoration: none; }
 .pos { color: var(--up); } .neg { color: var(--down); }
 
 /* ── shell ─────────────────────────────── */
