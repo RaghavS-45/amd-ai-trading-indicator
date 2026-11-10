@@ -1,0 +1,14 @@
+# requirements-app.txt  –  only what the live app needs (Docker image for cloud hosting).
+# Same pinned versions as requirements.txt.
+alpaca-py==0.34.0
+pandas==2.2.3
+numpy==1.26.4
+pyarrow==17.0.0
+scikit-learn==1.5.2
+joblib==1.4.2
+pyyaml==6.0.2
+exchange-calendars==4.5.4
+fastapi==0.115.4
+uvicorn[standard]==0.32.1
+python-dotenv==1.0.1
+huggingface_hub==0.36.2

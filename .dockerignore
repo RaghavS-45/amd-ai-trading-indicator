@@ -1,0 +1,9 @@
+.env
+*.env
+.git
+.venv
+data
+report
+notebooks
+app/signals.db
+__pycache__

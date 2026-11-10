@@ -75,6 +75,7 @@ class Engine:
             rows.index = pd.to_datetime(rows.index, utc=True)
             self.today[sym] = rows.drop(columns=["symbol", "session"])
         self.final_upto = max([self.open_utc - ONE] + [d.index.max() for d in self.today.values() if len(d)])
+        self.done_upto = self.open_utc - ONE
         self.news = {}
         self.frame = None
         self.feat = None
@@ -96,7 +97,9 @@ class Engine:
             self.final_upto = upto
         self._update_news(self.final_upto)
         self.frame = self._frame(self.final_upto)
-        return self._emit(self.final_upto)
+        n = self._emit(self.final_upto)
+        self.done_upto = self.final_upto
+        return n
 
     def _update_news(self, upto: pd.Timestamp) -> None:
         news = self.source.news(self.open_utc - pd.Timedelta(minutes=CFG["live_news_minutes"]), upto + ONE)
@@ -183,6 +186,15 @@ class Engine:
         self.store.add_outcomes(rows)
 
     # ── what the page shows ─────────────────────────────────────────
+    def grade(self, sig: pd.DataFrame, out: pd.DataFrame):
+        """Range record and direction scorecard for these signals."""
+        scored = out[out["ts"].isin(set(sig["ts"]))]
+        rsi = self.feat["rsi"].rename(index=_iso) if self.feat is not None else pd.Series(dtype=float)
+        graded = scored.merge(sig[["ts", "close", "lean"]], on="ts").assign(rsi=lambda d: d["ts"].map(rsi))
+        rec = {"scored": int(len(scored)), "in_band": int(scored["in_band"].sum()),
+               "in_typical": int(scored["in_typical"].sum())}
+        return rec, scorecard(graded)
+
     def state(self) -> dict:
         if self.frame is None:
             return {"session": None}
@@ -191,10 +203,7 @@ class Engine:
         out = self.store.outcomes(self.session)
         news = sorted(({"time": _iso(a["bar"] - ONE), "headline": a["headline"], "source": a["source"]}
                        for a in self.news.values() if a["bar"] >= self.open_utc), key=lambda a: a["time"])
-        live = sig if self.review else sig[sig["late"] == 0]
-        scored = out[out["ts"].isin(set(live["ts"]))]
-        rsi = self.feat["rsi"].rename(index=_iso) if self.feat is not None else pd.Series(dtype=float)
-        graded = scored.merge(live[["ts", "close", "lean"]], on="ts").assign(rsi=lambda d: d["ts"].map(rsi))
+        rec, card = self.grade(sig if self.review else sig[sig["late"] == 0], out)
         offset = self.open_utc.tz_convert(ET).utcoffset().total_seconds()
         return {
             "session": self.session, "open": _iso(self.open_utc), "close": _iso(self.close_utc),
@@ -205,10 +214,8 @@ class Engine:
             "signals": sig.replace({np.nan: None}).to_dict("records"),
             "outcomes": out.to_dict("records"),
             "news": news,
-            "record": {"scored": int(len(scored)), "in_band": int(scored["in_band"].sum()),
-                       "in_typical": int(scored["in_typical"].sum()),
-                       "late_signals": int((sig["late"] == 1).sum()), "review": self.review},
-            "scorecard": scorecard(graded),
+            "record": dict(rec, late_signals=int((sig["late"] == 1).sum()), review=self.review),
+            "scorecard": card,
             "costs": {"shares": CFG["shares_per_trade"],
                       "per_share_each_way": CFG["fee_per_share"] + CFG["slippage_per_share"]},
             "model": {"id": self.model_id, "train_end": self.model["train_end"],

@@ -30,6 +30,9 @@ header h1 { font-size: 18px; margin: 0; font-weight: 650; }
 .chip.live { color: var(--up); border-color: var(--up); }
 .chip.review, .chip.replay { color: var(--band); border-color: var(--band); }
 .chip.error { color: var(--down); border-color: var(--down); }
+select#day { font: inherit; font-size: 13px; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; }
+table.score tr.liverow td { color: var(--ink-2); }
 main { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 12px; padding: 0 16px 16px; }
 @media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); } }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
@@ -74,6 +77,7 @@ footer { padding: 0 16px 20px; font-size: 12px; color: var(--ink-2); }
   <span class="price" id="price">–</span>
   <span class="muted" id="asof"></span>
   <span class="chip" id="mode">connecting…</span>
+  <select id="day" aria-label="Session to show"><option value="">Latest session</option></select>
   <span class="muted" id="statusmsg"></span>
 </header>
 <main>
@@ -124,6 +128,7 @@ footer { padding: 0 16px 20px; font-size: 12px; color: var(--ink-2); }
       <h2>Range track record, <span id="recwhen">this session</span></h2>
       <div class="row"><span>Inside the 80% range</span><span class="v" id="recband">–</span></div>
       <div class="row"><span>Inside the typical move</span><span class="v" id="rectyp">–</span></div>
+      <div class="note" id="reclive"></div>
       <div class="note" id="recnote">Scored on IEX closes 10 minutes later. Signals made late (after a restart) are not counted.</div>
     </div>
   </div>
@@ -191,7 +196,7 @@ function render(s) {
   const news = s.news.map(n => ({ time: t(n.time), position: 'aboveBar', color: css('--news'),
     shape: 'circle', text: 'N' }));
   candles.setMarkers(arrows.concat(news).filter(m => barTimes.has(m.time)).sort((a, b) => a.time - b.time));
-  $('scorewhen').textContent = s.record.review ? `review of ${s.session}` : 'this session';
+  $('scorewhen').textContent = s.record.review ? `review of ${s.session}` : `live, ${s.session}`;
   $('recwhen').textContent = $('scorewhen').textContent;
   renderScore(s);
   if (bars.length) {
@@ -202,6 +207,10 @@ function render(s) {
   const r = s.record;
   $('recband').textContent = r.scored ? `${r.in_band} of ${r.scored} (${Math.round(100 * r.in_band / r.scored)}%) · target 80%` : 'none yet';
   $('rectyp').textContent = r.scored ? `${r.in_typical} of ${r.scored} (${Math.round(100 * r.in_typical / r.scored)}%) · target 50%` : 'none yet';
+  const lr = s.live_record;
+  $('reclive').textContent = lr && lr.record.scored ? `Shown live that day (${etClock(lr.first)}–${etClock(lr.last)} ET): ` +
+    `${lr.record.in_band} of ${lr.record.scored} inside the 80% range (${Math.round(100 * lr.record.in_band / lr.record.scored)}%), ` +
+    `${lr.record.in_typical} inside the typical move (${Math.round(100 * lr.record.in_typical / lr.record.scored)}%).` : '';
   $('recnote').textContent = 'Scored on IEX closes 10 minutes later. ' + (r.review ? REVIEW :
     (r.late_signals ? `${r.late_signals} signals made late (computed after the fact) are not counted.` : ''));
   $('foot').textContent = `Model ${s.model.id}, trained on data up to ${s.model.train_end}. ` +
@@ -214,15 +223,20 @@ function renderScore(s) {
   const sc = s.scorecard || {};
   if (!sc.indicator) { $('score').innerHTML = '<tr><td colspan="5" class="muted">none yet</td></tr>'; return; }
   const usd = x => (x >= 0 ? '+$' : '−$') + Math.abs(x).toFixed(2);
-  $('score').innerHTML = ['indicator', 'always_up', 'rsi_rule'].map(k => { const r = sc[k];
+  const rows = [['indicator', sc.indicator, NAMES.indicator], ['always_up', sc.always_up, NAMES.always_up],
+    ['rsi_rule', sc.rsi_rule, NAMES.rsi_rule]];
+  const lr = s.live_record;
+  if (lr) rows.splice(1, 0, ['live', lr.scorecard.indicator, `↳ shown live (${etClock(lr.first)}–${etClock(lr.last)} ET)`]);
+  $('score').innerHTML = rows.map(([k, r, name]) => {
     const acc = r.signals ? `${r.correct} (${Math.round(100 * r.accuracy)}%)` : '–';
     const pnl = r.trades ? `<span class="${r.pnl_usd >= 0 ? 'pos' : 'neg'}">${usd(r.pnl_usd)}</span>` : '–';
-    return `<tr class="${k === 'indicator' ? 'ours' : ''}"><td>${NAMES[k]}</td><td>${r.signals}</td><td>${acc}</td>` +
+    return `<tr class="${k === 'indicator' ? 'ours' : k === 'live' ? 'liverow' : ''}"><td>${name}</td><td>${r.signals}</td><td>${acc}</td>` +
       `<td>${r.trades}</td><td>${pnl}</td></tr>`; }).join('');
   const c = s.costs;
   $('scorenote').textContent = '"Right" means the price 10 minutes later moved the way the signal said. Profit is after costs, on paper trades: ' +
     `${c.shares} shares, held 10 minutes, one at a time, $${(2 * c.per_share_each_way).toFixed(2)}/share round-trip cost. ` +
     'Scored on IEX closes. ' + (s.record.review ? REVIEW : 'Signals made late are not counted.') +
+    (lr ? ' The "shown live" row counts only the signals the app showed on time that day.' : '') +
     ' One day is a small sample, so a few lucky trades move these numbers a lot.';
 }
 
@@ -274,17 +288,37 @@ chart.subscribeClick(p => {
 });
 $('latest').onclick = () => { pinned = null; showSignal(null); };
 
-let autoFit = true;
+let autoFit = true, gen = 0;
 ['wheel', 'mousedown', 'touchstart'].forEach(e => $('chart').addEventListener(e, () => { autoFit = false; }, { passive: true }));
-async function poll() {
+async function poll(g) {
+  const day = $('day').value;
   try {
-    const s = await (await fetch('/api/state')).json();
+    const s = await (await fetch('/api/state' + (day ? '?day=' + day : ''))).json();
+    if (g !== gen) return;
     render(s);
     if (autoFit && s.bars && s.bars.length) chart.timeScale().fitContent();
-  } catch (e) { $('mode').textContent = 'offline'; $('mode').className = 'chip error'; }
-  setTimeout(poll, state && state.status && state.status.mode === 'replay' ? 1000 : 5000);
+  } catch (e) { if (g !== gen) return; $('mode').textContent = 'offline'; $('mode').className = 'chip error'; }
+  setTimeout(() => poll(g), day ? 60000 : state && state.status && state.status.mode === 'replay' ? 1000 : 5000);
 }
-poll();
+async function loadDays() {
+  try {
+    const { days } = await (await fetch('/api/days')).json();
+    const keep = $('day').value;
+    $('day').innerHTML = '<option value="">Latest session</option>' + days.map(d =>
+      `<option value="${d.day}">${d.day}${d.live ? ' · was live' : ''}</option>`).join('');
+    $('day').value = keep;
+  } catch (e) {}
+}
+$('day').onchange = () => {
+  gen++; pinned = null; autoFit = true; state = null;
+  [candles, bandHi, bandLo, typHi, typLo, dirStrip].forEach(x => x.setData([])); candles.setMarkers([]);
+  $('score').innerHTML = '<tr><td colspan="5" class="muted">loading…</td></tr>';
+  $('mode').className = 'chip'; $('mode').textContent = 'loading';
+  $('statusmsg').textContent = $('day').value ? `Recomputing ${$('day').value} (up to a minute the first time)…` : '';
+  poll(gen);
+};
+loadDays(); setInterval(loadDays, 600000);
+poll(gen);
 </script>
 </body>
 </html>

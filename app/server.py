@@ -5,6 +5,8 @@ minute; the page polls /api/state.
   live   (default): free Alpaca IEX bars and news; signals stored in signals_db_path.
           Outside market hours it shows the last session recomputed after the close (marked as a
           review, not live signals, and kept in memory only).
+  /api/state?day=YYYY-MM-DD shows a past session after the test period, recomputed after the close
+  (a review), plus that day's live record if the app was running then. /api/days lists them.
   replay: plays a training-period day bar by bar from local files (in memory only).
 
 Usage:
@@ -17,7 +19,9 @@ import sys
 import threading
 import time
 import traceback
+from collections import OrderedDict
 from pathlib import Path
+from typing import Optional
 
 import pandas as pd
 import yaml
@@ -29,11 +33,13 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from live_engine import CAL, ONE, Engine  # noqa: E402
 from live_model import load_model  # noqa: E402
+import record_sync  # noqa: E402
 from signal_store import Store  # noqa: E402
 
 CFG = yaml.safe_load((ROOT / "config.yaml").read_text())
 DELAY = pd.Timedelta(seconds=CFG["live_bar_delay_seconds"])
 STATIC = Path(__file__).parent / "static"
+FIRST_PAST = pd.Timestamp(CFG["test_end"]) + pd.Timedelta(days=1)   # never show the hold-out test period
 
 
 def utc_now() -> pd.Timestamp:
@@ -55,6 +61,8 @@ class Runner:
         self.model = load_model()
         self.current = None
         self.snapshot = {"session": None}
+        self.source, self.store = None, None
+        self.past, self.past_lock = OrderedDict(), threading.Lock()
 
     def start(self):
         target = self._replay if self.mode == "replay" else self._live
@@ -93,12 +101,61 @@ class Runner:
             time.sleep(1 / speed)
         self.status["message"] = f"Replay of {day.date()} finished"
 
+    # ── past sessions ───────────────────────────────────────────────
+    def days(self) -> dict:
+        if self.source is None:
+            return {"days": []}
+        latest = latest_session(utc_now())
+        with self.lock:
+            live = set(self.store.live_sessions())
+        done = utc_now() >= CAL.session_close(latest) + DELAY + ONE
+        days = [str(d.date()) for d in CAL.sessions_in_range(FIRST_PAST, latest) if d < latest or done]
+        return {"days": [{"day": d, "live": d in live} for d in reversed(days)]}
+
+    def past_state(self, day: str) -> dict:
+        if day not in {d["day"] for d in self.days()["days"]}:
+            return {"session": None, "status": dict(self.status, error=f"{day}: not an available past session")}
+        status = dict(self.status, review=True, error=None, server_time=utc_now().isoformat(),
+                      message=f"Session {day} recomputed after the close (a review, not live signals)")
+        try:
+            snap = self._review(day)
+        except Exception as e:
+            traceback.print_exc()
+            return {"session": None, "status": dict(status, error=f"{type(e).__name__}: {e}")}
+        return dict(snap, status=status)
+
+    def _review(self, day: str) -> dict:
+        """A finished session recomputed in memory (every signal scored), plus the signals the app
+        showed live on time that day, if it was running. Cached: a past session never changes."""
+        with self.past_lock:
+            if day not in self.past:
+                eng = Engine(self.source, Store(":memory:"), self.model, utc_now)
+                eng.review = True
+                eng.open_session(pd.Timestamp(day))
+                eng.step(eng.last_bar)
+                snap = eng.state()
+                with self.lock:
+                    sig, out = self.store.signals(day), self.store.outcomes(day)
+                sig = sig[sig["late"] == 0]
+                if len(sig):
+                    rec, card = eng.grade(sig, out)
+                    snap["live_record"] = {"signals": int(len(sig)), "first": sig["ts"].iloc[0],
+                                           "last": sig["ts"].iloc[-1], "record": rec, "scorecard": card}
+                self.past[day] = snap
+                while len(self.past) > CFG["past_days_in_memory"]:   # small free hosts: 512 MB
+                    self.past.popitem(last=False)
+            self.past.move_to_end(day)
+            return self.past[day]
+
     # ── live ────────────────────────────────────────────────────────
     def _live(self):
         from live_sources import AlpacaSource
-        source = AlpacaSource()
-        live = Engine(source, Store(ROOT / CFG["signals_db_path"]), self.model, utc_now)
-        review = None
+        source = self.source = AlpacaSource()
+        db = ROOT / CFG["signals_db_path"]
+        record_sync.restore_until_done(db, self.status)   # hosts whose disk is wiped on restart
+        self.store = Store(db)
+        record_sync.start(db)
+        live = Engine(source, self.store, self.model, utc_now)
         while True:
             now = utc_now()
             day = latest_session(now)
@@ -113,17 +170,18 @@ class Runner:
                 self.status.update(review=False, message="Live: IEX bars, a minute is final "
                                    f"{CFG['live_bar_delay_seconds']}s after it closes")
             elif live.day == day:
-                if live.final_upto < live.last_bar:
+                if live.done_upto < live.last_bar:
                     self._run(lambda: live.step(live.last_bar))
                 self.publish(live)
                 self.status.update(review=False, message="Market closed: today's live signals")
             else:
-                if review is None or review.day != day:
-                    review = Engine(source, Store(":memory:"), self.model, utc_now)
-                    review.review = True
-                    self._run(lambda: review.open_session(day))
-                    self._run(lambda: review.step(review.last_bar))
-                self.publish(review)
+                if self.snapshot.get("session") != str(day.date()):
+                    try:   # not under self.lock: _review takes past_lock first, like a page request
+                        self.snapshot = dict(self._review(str(day.date())))
+                        self.status["error"] = None
+                    except Exception as e:
+                        self.status["error"] = f"{type(e).__name__}: {e}"
+                        traceback.print_exc()
                 self.status.update(review=True, message=f"Market closed: session {day.date()} recomputed "
                                    "after the close (a review, not live signals)")
             wake = (utc_now().floor("min") + ONE + DELAY - utc_now()).total_seconds()
@@ -140,8 +198,13 @@ def _start():
 
 
 @app.get("/api/state")
-def api_state():
-    return runner.state()
+def api_state(day: Optional[str] = None):
+    return runner.past_state(day) if day else runner.state()
+
+
+@app.get("/api/days")
+def api_days():
+    return runner.days()
 
 
 @app.get("/")

@@ -73,5 +73,9 @@ class Store:
     def outcomes(self, session: Optional[str] = None) -> pd.DataFrame:
         return self._read("outcomes", session)
 
+    def live_sessions(self) -> list:
+        rows = self.con.execute("SELECT DISTINCT session FROM signals WHERE late = 0").fetchall()
+        return sorted(r[0] for r in rows)
+
     def bars(self, session: str) -> pd.DataFrame:
         return self._read("bars", session)

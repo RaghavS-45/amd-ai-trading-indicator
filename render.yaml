@@ -1,0 +1,18 @@
+# Render blueprint for the live app (free plan). Secrets are typed in on render.com, never stored here.
+services:
+  - type: web
+    name: amd-indicator
+    runtime: docker
+    plan: free
+    region: virginia
+    healthCheckPath: /api/days
+    autoDeploy: false          # a push never restarts the app mid-session; deploy by hand
+    envVars:
+      - key: ALPACA_API_KEY
+        sync: false
+      - key: ALPACA_SECRET_KEY
+        sync: false
+      - key: HF_TOKEN
+        sync: false
+      - key: HF_RECORD_REPO
+        value: Raghav-4-5/amd-indicator-record

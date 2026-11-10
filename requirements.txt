@@ -28,5 +28,6 @@ ipykernel==6.29.5
 
 # ── Utilities ──────────────────────────────────────────────────────
 python-dotenv==1.0.1
+huggingface_hub==0.36.2    # copy of the live record on Hugging Face (src/record_sync.py)
 tqdm==4.67.0
 pytest==8.3.4
