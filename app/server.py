@@ -76,6 +76,7 @@ class Runner:
         self.snapshot = {"session": None}
         self.source, self.store = None, None
         self.past, self.past_lock = OrderedDict(), threading.Lock()
+        self.live_days = set()
 
     def start(self):
         target = self._replay if self.mode == "replay" else self._live
@@ -120,8 +121,12 @@ class Runner:
         if self.source is None:
             return {"days": []}
         latest = latest_session(utc_now())
-        with self.lock:
-            live = set(self.store.live_sessions())
+        if self.lock.acquire(timeout=0.5):   # never wait on a long engine step: this is the health check
+            try:
+                self.live_days = set(self.store.live_sessions())
+            finally:
+                self.lock.release()
+        live = self.live_days
         done = utc_now() >= CAL.session_close(latest) + DELAY + ONE
         days = [str(d.date()) for d in CAL.sessions_in_range(FIRST_PAST, latest) if d < latest or done]
         return {"days": [{"day": d, "live": d in live} for d in reversed(days)]}
