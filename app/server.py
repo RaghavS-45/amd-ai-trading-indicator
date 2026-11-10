@@ -202,11 +202,11 @@ def api_state(day: Optional[str] = None):
     return runner.past_state(day) if day else runner.state()
 
 
-@app.get("/api/days")
+@app.api_route("/api/days", methods=["GET", "HEAD"])   # HEAD: uptime monitors
 def api_days():
     return runner.days()
 
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 def index():
     return FileResponse(STATIC / "index.html")
