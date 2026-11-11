@@ -29,6 +29,11 @@ function makeChart(el, onPick) {
     priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
   const bandHi = line(LightweightCharts.LineStyle.Dashed, 2), bandLo = line(LightweightCharts.LineStyle.Dashed, 2);
   const typHi = line(LightweightCharts.LineStyle.Dotted, 1), typLo = line(LightweightCharts.LineStyle.Dotted, 1);
+  const vwapLine = line(LightweightCharts.LineStyle.Solid, 2);
+  const step = () => chart.addLineSeries({ lineWidth: 1, lineType: LightweightCharts.LineType.WithSteps,
+    priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+  const dayHi = step(), dayLo = step();
+  let prevLines = [], showLevels = store.get('levels') !== 'off';
   const strip = chart.addHistogramSeries({ priceScaleId: 'dir', priceLineVisible: false, lastValueVisible: false });
   chart.priceScale('dir').applyOptions({ scaleMargins: { top: 0.9, bottom: 0 }, visible: false });
   candles.priceScale().applyOptions({ scaleMargins: { top: 0.05, bottom: 0.14 } });
@@ -54,9 +59,10 @@ function makeChart(el, onPick) {
   }, { passive: false });
   const tools = document.createElement('div');
   tools.className = 'charttools';
-  tools.innerHTML = '<button type="button" data-z="in" aria-label="Zoom in">+</button><button type="button" data-z="out" aria-label="Zoom out">−</button><button type="button" data-z="fit">Fit</button>';
+  tools.innerHTML = '<button type="button" data-z="in" aria-label="Zoom in">+</button><button type="button" data-z="out" aria-label="Zoom out">−</button><button type="button" data-z="fit">Fit</button><button type="button" data-z="lv" aria-pressed="true">Levels</button>';
   tools.onclick = e => { const b = e.target.closest('button'); if (!b) return;
-    if (b.dataset.z === 'fit') { autoFit = true; ts.fitContent(); } else zoom(b.dataset.z === 'in' ? 0.6 : 1.6); };
+    if (b.dataset.z === 'lv') { showLevels = !showLevels; store.set('levels', showLevels ? 'on' : 'off'); if (last) render(last); }
+    else if (b.dataset.z === 'fit') { autoFit = true; ts.fitContent(); } else zoom(b.dataset.z === 'in' ? 0.6 : 1.6); };
   el.parentElement.style.position = 'relative'; el.parentElement.appendChild(tools);
   const t = iso => secs(iso) + offset;
   chart.subscribeClick(p => {
@@ -71,6 +77,8 @@ function makeChart(el, onPick) {
     candles.applyOptions({ upColor: css('--up'), downColor: css('--down'), wickUpColor: css('--up'), wickDownColor: css('--down') });
     [bandHi, bandLo].forEach(x => x.applyOptions({ color: css('--band') }));
     [typHi, typLo].forEach(x => x.applyOptions({ color: css('--typ') }));
+    vwapLine.applyOptions({ color: css('--vwap') });
+    [dayHi, dayLo].forEach(x => x.applyOptions({ color: css('--lvl') }));
     if (last) render(last);
   }
   function render(s) {
@@ -83,6 +91,16 @@ function makeChart(el, onPick) {
     const at = k => s.signals.map(g => ({ time: t(g.ts) + h, value: g[k] }));
     bandHi.setData(at('band_hi')); bandLo.setData(at('band_lo'));
     typHi.setData(at('typical_hi')); typLo.setData(at('typical_lo'));
+    const lv = levels(s);
+    tools.querySelector('[data-z="lv"]').setAttribute('aria-pressed', String(showLevels));
+    const on = rows => showLevels ? rows : [];
+    vwapLine.setData(on(lv.vwap.map(x => ({ time: t(x.time), value: x.value }))));
+    dayHi.setData(on(lv.hi.map(x => ({ time: t(x.time), value: x.value }))));
+    dayLo.setData(on(lv.lo.map(x => ({ time: t(x.time), value: x.value }))));
+    prevLines.forEach(x => candles.removePriceLine(x)); prevLines = [];
+    if (showLevels && s.prev_day) prevLines = [['close', 'Yday close'], ['high', 'Yday high'], ['low', 'Yday low']].map(([k, title]) =>
+      candles.createPriceLine({ price: s.prev_day[k], color: css('--lvl'), lineWidth: 1,
+        lineStyle: LightweightCharts.LineStyle.SparseDotted, axisLabelVisible: true, title }));
     const withP = s.signals.filter(g => g.p_up != null);
     strip.setData(withP.map(g => { const d = dirOf(g);
       return { time: t(g.ts), value: Math.max(confOf(g) - 0.5, 0.01),
@@ -98,9 +116,41 @@ function makeChart(el, onPick) {
   function fit() { if (autoFit) setTimeout(() => chart.timeScale().fitContent(), 80); }
   new ResizeObserver(() => { if (last) fit(); }).observe(el);   // a chart drawn while hidden had no width
   function clear() { last = null; session = null;
-    [candles, bandHi, bandLo, typHi, typLo, strip].forEach(x => x.setData([])); candles.setMarkers([]); }
+    [candles, bandHi, bandLo, typHi, typLo, vwapLine, dayHi, dayLo, strip].forEach(x => x.setData([])); candles.setMarkers([]);
+    prevLines.forEach(x => candles.removePriceLine(x)); prevLines = []; }
   theme();
   return { render, theme, clear, fit };
+}
+
+// ── price levels: each point uses only the bars up to that minute ──
+function levels(s) {
+  let pv = 0, v = 0, hi = -Infinity, lo = Infinity;
+  const vwap = [], his = [], los = [];
+  for (const b of s.bars) {
+    if (b.volume > 0) { pv += b.volume * (b.high + b.low + b.close) / 3; v += b.volume; }
+    if (!b.filled) { hi = Math.max(hi, b.high); lo = Math.min(lo, b.low); }
+    if (v > 0) vwap.push({ time: b.time, value: pv / v });
+    if (hi > -Infinity) { his.push({ time: b.time, value: hi }); los.push({ time: b.time, value: lo }); }
+  }
+  return { vwap, hi: his, lo: los };
+}
+const upTo = (rows, ts) => { let r = null; for (const x of rows) { if (x.time > ts) break; r = x; } return r && r.value; };
+
+function levelsCard(s, sig) {
+  const lv = levels(s), p = s.prev_day || {};
+  const rows = [['VWAP (today, IEX volume)', upTo(lv.vwap, sig.ts)], ['Today high so far', upTo(lv.hi, sig.ts)],
+    ['Today low so far', upTo(lv.lo, sig.ts)], ['Yesterday close', p.close], ['Yesterday high', p.high], ['Yesterday low', p.low]];
+  const row = ([name, x]) => {
+    if (x == null) return '';
+    const gap = x - sig.close, inside = x >= sig.band_lo && x <= sig.band_hi;
+    return `<div class="row"><span>${name}</span><span class="v">${money(x)} <span class="muted">${usd(gap)}</span> ` +
+      `<span class="tag ${inside ? 'in' : ''}">${inside ? 'inside range' : 'outside range'}</span></span></div>`;
+  };
+  return `<div class="card">
+      <h2>Price levels</h2>
+      ${rows.map(row).join('')}
+      <p class="note">Gap = level minus the price at this minute. “Inside range”: the level lies inside the 80% range, so the price 10 minutes from now could well be there. “Outside range”: the price 10 minutes from now is beyond it only about 1 time in 10. Today's high and low ignore minutes with no IEX trade.</p>
+    </div>`;
 }
 
 // ── shared pieces ──────────────────────────────────────────────
@@ -153,6 +203,7 @@ function renderPanel(root, s, sig, pinned, onLatest) {
       ${sig.warning ? '<div class="warn">Bigger moves than usual are likely</div>' : ''}
       <p class="note">${happened}${sig.late && !s.record.review ? ' <i>Made late (after a restart): not counted in the live score.</i>' : ''}</p>
     </div>
+    ${levelsCard(s, sig)}
     <div class="card">
       <h2>Direction</h2>
       <div class="row"><span class="dir ${d.cls}">${d.text}</span><span class="v muted">${d.cls === 'none' ? '' : 'confident signal'}</span></div>

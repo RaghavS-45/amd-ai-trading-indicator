@@ -55,9 +55,11 @@
             <span><i class="lg typ"></i>typical move</span>
             <span><i class="lg up"></i><i class="lg dn"></i>direction signal</span>
             <span><i class="lg news"></i>news</span>
+            <span><i class="lg vwap"></i>VWAP</span>
+            <span><i class="lg lvl"></i>today's high/low so far · yesterday's close/high/low</span>
             <span><i class="lg grey"></i>no IEX trade that minute</span>
           </div>
-          <p class="hint">Zoom: + / − buttons, pinch, or Ctrl/⌘ + scroll. Move: drag or swipe sideways. Click a candle to see that minute's forecast.</p>
+          <p class="hint">Zoom: + / − buttons, pinch, or Ctrl/⌘ + scroll. Move: drag or swipe sideways. Click a candle to see that minute's forecast. “Levels” hides or shows the price levels.</p>
         </div>
         <div class="stack" id="live-panel"></div>
       </div>
@@ -85,7 +87,16 @@
         <div class="grid2">
           <div class="card chartcard">
             <div class="chart" id="hist-chart"></div>
-            <p class="hint">Zoom: + / − buttons, pinch, or Ctrl/⌘ + scroll. Move: drag or swipe sideways. Click a candle (or a row below) to see that minute's forecast.</p>
+            <div class="legend">
+              <span><i class="lg band"></i>80% range</span>
+              <span><i class="lg typ"></i>typical move</span>
+              <span><i class="lg up"></i><i class="lg dn"></i>direction signal</span>
+              <span><i class="lg news"></i>news</span>
+              <span><i class="lg vwap"></i>VWAP</span>
+              <span><i class="lg lvl"></i>today's high/low so far · yesterday's close/high/low</span>
+              <span><i class="lg grey"></i>no IEX trade that minute</span>
+            </div>
+            <p class="hint">Zoom: + / − buttons, pinch, or Ctrl/⌘ + scroll. Move: drag or swipe sideways. Click a candle (or a row below) to see that minute's forecast. “Levels” hides or shows the price levels.</p>
           </div>
           <div class="stack" id="hist-panel"></div>
         </div>
@@ -165,6 +176,7 @@
             <dt>80% range</dt><dd>The price 10 minutes later should land inside this range about 8 times out of 10. On the chart it is the dashed band, drawn ten minutes ahead of each candle.</dd>
             <dt>Activity</dt><dd>How busy the market is compared with a normal day at the same time: <b>calm</b>, <b>normal</b> or <b>busy</b>. “Bigger moves than usual are likely” appears when it is far above normal.</dd>
             <dt>Direction</dt><dd>▲ UP or ▼ DOWN with a confidence, shown only when the model leans clearly one way; otherwise “No clear signal”. Tested on 2023–2026 data, these calls were right about 50% of the time: treat them as a weak hint.</dd>
+            <dt>Price levels</dt><dd>Prices traders watch: <b>VWAP</b> (today's average price weighted by volume, here IEX volume only), today's high and low so far, and yesterday's close, high and low. Each is marked <b>inside range</b> if it lies inside the 80% range, i.e. the price could well be there in 10 minutes. Every point on these lines uses only the minutes before it.</dd>
             <dt>Context</dt><dd>What QQQ (big tech) and NVDA (a chip peer) did in the last 10 minutes, how many AMD headlines came out, and how many recent minutes had no trades on the free data feed.</dd>
           </dl>
         </div>

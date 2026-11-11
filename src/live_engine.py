@@ -79,6 +79,7 @@ class Engine:
         self.news = {}
         self.frame = None
         self.feat = None
+        self.prev_day = None
         self.day = day   # set last: a failed start is retried on the next tick
 
     # ── one step ────────────────────────────────────────────────────
@@ -119,6 +120,11 @@ class Engine:
         grid = grid[(grid.index <= upto) & grid["close"].notna()]
         is_today = grid.index >= self.open_utc
         past, _ = drop_sparse_days(grid[~is_today], CFG["min_day_coverage"])
+        if len(past):
+            last = past[past.index.tz_convert(ET).date == past.index[-1].tz_convert(ET).date()]
+            self.prev_day = {"date": str(last.index[-1].tz_convert(ET).date()),
+                             "close": float(last["close"].iloc[-1]), "high": float(last["high"].max()),
+                             "low": float(last["low"].min())}
         grid = pd.concat([past, grid[is_today]])
         for sym in SYMBOLS[1:]:
             ctx = build_grid(raw[sym], start, end).reindex(grid.index)[CONTEXT_COLS]
@@ -198,7 +204,7 @@ class Engine:
     def state(self) -> dict:
         if self.frame is None:
             return {"session": None}
-        bars = self.frame[["open", "high", "low", "close", "is_filled"]]
+        bars = self.frame[["open", "high", "low", "close", "volume", "is_filled"]]
         sig = self.store.signals(self.session)
         out = self.store.outcomes(self.session)
         news = sorted(({"time": _iso(a["bar"] - ONE), "headline": a["headline"], "source": a["source"]}
@@ -210,7 +216,8 @@ class Engine:
             "et_offset_seconds": int(offset), "horizon_minutes": CFG["horizon_bars"],
             "last_bar": _iso(self.final_upto) if self.final_upto >= self.open_utc else None,
             "bars": [{"time": _iso(ts), "open": r.open, "high": r.high, "low": r.low, "close": r.close,
-                      "filled": bool(r.is_filled)} for ts, r in bars.iterrows()],
+                      "volume": float(r.volume), "filled": bool(r.is_filled)} for ts, r in bars.iterrows()],
+            "prev_day": self.prev_day,
             "signals": sig.replace({np.nan: None}).to_dict("records"),
             "outcomes": out.to_dict("records"),
             "news": news,

@@ -3,7 +3,7 @@
   --accent: #2a6fd6; --accent-soft: rgba(42,111,214,0.10);
   --up: #1f8a70; --down: #c8553d; --up-soft: rgba(31,138,112,0.12); --down-soft: rgba(200,85,61,0.12);
   --band: #2a6fd6; --typ: rgba(42,111,214,0.55);
-  --calm: #1f8a70; --normal: #6b7080; --busy: #c8553d; --warn-bg: #fdf0e9; --news: #8a5cd6;
+  --calm: #1f8a70; --normal: #6b7080; --busy: #c8553d; --warn-bg: #fdf0e9; --news: #8a5cd6; --vwap: #d08a1e; --lvl: #8a8f9c;
   --shadow: 0 1px 2px rgba(16,24,40,0.05), 0 1px 3px rgba(16,24,40,0.04);
 }
 @media (prefers-color-scheme: dark) {
@@ -12,7 +12,7 @@
     --accent: #6ea1f2; --accent-soft: rgba(110,161,242,0.14);
     --up: #3fb894; --down: #e07a62; --up-soft: rgba(63,184,148,0.16); --down-soft: rgba(224,122,98,0.16);
     --band: #6ea1f2; --typ: rgba(110,161,242,0.55);
-    --calm: #3fb894; --normal: #a3a8b4; --busy: #e07a62; --warn-bg: #3a2620; --news: #b08cf0;
+    --calm: #3fb894; --normal: #a3a8b4; --busy: #e07a62; --warn-bg: #3a2620; --news: #b08cf0; --vwap: #f0b04a; --lvl: #9aa0ad;
     --shadow: none;
   }
 }
@@ -21,7 +21,7 @@
   --accent: #6ea1f2; --accent-soft: rgba(110,161,242,0.14);
   --up: #3fb894; --down: #e07a62; --up-soft: rgba(63,184,148,0.16); --down-soft: rgba(224,122,98,0.16);
   --band: #6ea1f2; --typ: rgba(110,161,242,0.55);
-  --calm: #3fb894; --normal: #a3a8b4; --busy: #e07a62; --warn-bg: #3a2620; --news: #b08cf0;
+  --calm: #3fb894; --normal: #a3a8b4; --busy: #e07a62; --warn-bg: #3a2620; --news: #b08cf0; --vwap: #f0b04a; --lvl: #9aa0ad;
   --shadow: none;
 }
 
@@ -109,6 +109,11 @@ h2.section { margin: 14px 0 -4px; font-size: 13px; color: var(--ink); }
 .lg.up, .lg.dn { width: 10px; height: 10px; border: 0; background: var(--up); margin-right: 2px; }
 .lg.dn { background: var(--down); margin-right: 5px; }
 .lg.news { width: 9px; height: 9px; border: 0; border-radius: 50%; background: var(--news); }
+.lg.vwap { border-top: 2px solid var(--vwap); }
+.lg.lvl { border-top: 1px solid var(--lvl); }
+.tag { font-size: 11px; padding: 1px 6px; border-radius: 9px; background: var(--line); color: var(--ink-2); margin-left: 4px; white-space: nowrap; }
+.tag.in { background: var(--band); color: #fff; }
+.charttools button[aria-pressed="false"] { opacity: .5; text-decoration: line-through; }
 .lg.grey { width: 8px; height: 12px; border: 0; background: var(--ink-2); }
 
 /* ── side panel rows ───────────────────── */

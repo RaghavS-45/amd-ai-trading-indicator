@@ -153,6 +153,8 @@ class Runner:
                 eng.open_session(pd.Timestamp(day))
                 eng.step(eng.last_bar)
                 snap = eng.state()
+                if snap.get("prev_day") and snap["prev_day"]["date"] < str(FIRST_PAST.date()):
+                    snap["prev_day"] = None   # never show a hold-out test day
                 with self.lock:
                     sig, out = self.store.signals(day), self.store.outcomes(day)
                 sig = sig[sig["late"] == 0]
