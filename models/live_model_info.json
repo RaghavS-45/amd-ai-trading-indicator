@@ -29,6 +29,52 @@
       "last": 1.3950164155742495,
       "mid": 1.1935323160052589
     },
+    "lgbm": {
+      "smear": 1.3556184525142807,
+      "z_typical": 0.598432995179899,
+      "z_band": 1.2092406024089455,
+      "z_typical_parts": {
+        "first": 0.6513432292985433,
+        "last": 0.6903031638312553,
+        "mid": 0.598432995179899
+      },
+      "z_band_parts": {
+        "first": 1.316378442930885,
+        "last": 1.3643164059633945,
+        "mid": 1.2092406024089455
+      },
+      "columns": [
+        "lrv_10",
+        "lrv_30",
+        "lrv_sess",
+        "lrv_prev_day",
+        "lrv_seas",
+        "qqq_lrv_10",
+        "qqq_lrv_30",
+        "nvda_lrv_10",
+        "nvda_lrv_30",
+        "news_count_30",
+        "abs_gap",
+        "vol_surprise_clip",
+        "trades_surprise_clip",
+        "vol_tod_sin",
+        "vol_tod_cos"
+      ],
+      "params": {
+        "n_estimators": 500,
+        "learning_rate": 0.05,
+        "num_leaves": 31,
+        "min_child_samples": 500,
+        "colsample_bytree": 0.8,
+        "subsample": 0.8,
+        "subsample_freq": 1,
+        "random_state": 42,
+        "deterministic": true,
+        "force_row_wise": true,
+        "n_jobs": 4,
+        "verbose": -1
+      }
+    },
     "ratio_median": 0.7548784506991517,
     "activity_cuts": [
       0.6874749684025908,
@@ -85,6 +131,7 @@
   },
   "versions": {
     "sklearn": "1.5.2",
+    "lightgbm": "4.5.0",
     "numpy": "1.26.4",
     "pandas": "2.2.3"
   }

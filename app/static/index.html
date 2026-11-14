@@ -204,7 +204,8 @@
         </div>
         <div class="card">
           <h2>The models, in one line each</h2>
-          <p><b>Move size:</b> HAR model (Corsi, 2009) adapted to 10 minutes: a weighted mix of how jumpy AMD was recently. <span id="guide-weights"></span></p>
+          <p><b>Move size:</b> our LightGBM model (gradient-boosted trees) on 15 inputs: how jumpy AMD, QQQ and NVDA were recently, AMD news count, volume and trade surprises, and the time of day. Used since 14 Nov 2026.</p>
+          <p><b>Baseline and backup:</b> HAR model (Corsi, 2009) adapted to 10 minutes: a weighted mix of how jumpy AMD was recently. It is shown beside each forecast and takes over if a LightGBM input is missing. <span id="guide-weights"></span></p>
           <p><b>Direction:</b> logistic regression on 32 price, market and intraday inputs. <b>Data:</b> Alpaca's free IEX feed, 1-minute bars.</p>
           <p class="muted small">Paper trading and study use only. Not financial advice.</p>
         </div>

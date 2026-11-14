@@ -276,7 +276,7 @@ def api_model():
     return {"train_end": info["train_end"], "move": {k: info["move"][k] for k in
                                                      ("columns", "coef", "rows", "first_day", "last_day")},
             "lean": {k: info["lean"][k] for k in ("rows", "first_day", "last_day")},
-            "lean_features": len(info["lean"]["columns"]),
+            "lean_features": len(info["lean"]["columns"]), "lgbm_inputs": len(info["move"]["lgbm"]["columns"]),
             "band_coverage": CFG["band_coverage"], "typical_coverage": CFG["typical_coverage"],
             "horizon_minutes": CFG["horizon_bars"], "drop_open_mins": CFG["drop_open_mins"]}
 

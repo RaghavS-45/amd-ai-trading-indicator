@@ -13,7 +13,8 @@ import pandas as pd
 SIGNAL_COLS = ["ts", "session", "created_at", "late", "close", "forecast_rv", "typical_bps", "band_bps",
                "typical_lo", "typical_hi", "band_lo", "band_hi", "activity", "level", "warning",
                "p_up", "p_flat", "p_down", "lean", "news_30", "qqq_ret_10", "nvda_ret_10",
-               "filled_30", "model_id"]
+               "filled_30", "model_id", "move_model", "har_forecast_rv", "har_typical_bps", "har_band_bps"]
+ADDED = {"move_model": "TEXT", "har_forecast_rv": "REAL", "har_typical_bps": "REAL", "har_band_bps": "REAL"}   # 2026-11-14
 OUTCOME_COLS = ["ts", "session", "target_ts", "close_after", "ret_bps", "in_typical", "in_band"]
 BAR_COLS = ["symbol", "ts", "session", "open", "high", "low", "close", "volume", "trade_count", "vwap"]
 
@@ -22,7 +23,8 @@ CREATE TABLE IF NOT EXISTS signals (
   ts TEXT PRIMARY KEY, session TEXT, created_at TEXT, late INTEGER, close REAL, forecast_rv REAL,
   typical_bps REAL, band_bps REAL, typical_lo REAL, typical_hi REAL, band_lo REAL, band_hi REAL,
   activity REAL, level TEXT, warning INTEGER, p_up REAL, p_flat REAL, p_down REAL, lean TEXT,
-  news_30 REAL, qqq_ret_10 REAL, nvda_ret_10 REAL, filled_30 REAL, model_id TEXT);
+  news_30 REAL, qqq_ret_10 REAL, nvda_ret_10 REAL, filled_30 REAL, model_id TEXT,
+  move_model TEXT, har_forecast_rv REAL, har_typical_bps REAL, har_band_bps REAL);
 CREATE TABLE IF NOT EXISTS outcomes (
   ts TEXT PRIMARY KEY, session TEXT, target_ts TEXT, close_after REAL, ret_bps REAL,
   in_typical INTEGER, in_band INTEGER);
@@ -42,6 +44,10 @@ class Store:
             Path(path).parent.mkdir(parents=True, exist_ok=True)
         self.con = sqlite3.connect(str(path), check_same_thread=False)
         self.con.executescript(SCHEMA + FROZEN)
+        have = {r[1] for r in self.con.execute("PRAGMA table_info(signals)")}
+        for col, kind in ADDED.items():   # a record made before these columns existed: old rows stay NULL
+            if col not in have:
+                self.con.execute(f"ALTER TABLE signals ADD COLUMN {col} {kind}")
 
     def _insert(self, table: str, cols: list, rows: list) -> int:
         if not rows:

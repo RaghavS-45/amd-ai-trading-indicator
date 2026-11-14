@@ -176,7 +176,9 @@ class Engine:
                 "lean": None if ln is None else ln["lean"],
                 "news_30": float(feat.at[ts, "news_count_30"]),
                 "qqq_ret_10": _num(feat.at[ts, "qqq_ret_10"]), "nvda_ret_10": _num(feat.at[ts, "nvda_ret_10"]),
-                "filled_30": float(filled.at[ts]), "model_id": self.model_id})
+                "filled_30": float(filled.at[ts]), "model_id": self.model_id,
+                "move_model": m["move_model"], "har_forecast_rv": float(m["har_forecast_rv"]),
+                "har_typical_bps": float(m["har_typical_hw"] * 1e4), "har_band_bps": float(m["har_band_hw"] * 1e4)})
         added = self.store.add_signals(rows)
         self._outcomes(upto)
         return added
@@ -232,6 +234,6 @@ class Engine:
             "costs": {"shares": CFG["shares_per_trade"],
                       "per_share_each_way": CFG["fee_per_share"] + CFG["slippage_per_share"]},
             "model": {"id": self.model_id, "train_end": self.model["train_end"], "lean_cut": self.lean_cut,
-                      "lean_share": CFG["lean_share"],
+                      "lean_share": CFG["lean_share"], "move_models": sorted(set(sig["move_model"].dropna())),
                       "band_coverage": CFG["band_coverage"], "typical_coverage": CFG["typical_coverage"]},
         }

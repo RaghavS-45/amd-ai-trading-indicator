@@ -16,7 +16,7 @@ Versions match the project `.venv`.
 | PyYAML | 6.0.2 | Reading `config.yaml` |
 | python-dotenv | 1.0.1 | Loading API keys from `.env` |
 | pytz | 2026.6 | Time-zone conversion to America/New_York |
-| LightGBM | 4.5.0 | Gradient-boosted trees (Phase 5) |
+| LightGBM | 4.5.0 | Gradient-boosted trees (Phase 5; live range model since Phase 7f) |
 | scikit-learn | 1.5.2 | Logistic regression, StandardScaler, Pipeline (Phase 4) |
 | Matplotlib | 3.9.2 | EDA figures in `report/figures/` |
 | pytest | 8.4.2 | Automated tests (leakage, session selection) |

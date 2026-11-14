@@ -225,11 +225,11 @@ def day_table(rows: pd.DataFrame) -> pd.DataFrame:
 
 
 # ── dry-run check: the same numbers as the live engine ──────────────
-def check_against_engine(rows: pd.DataFrame, day) -> None:
+def check_against_engine(rows: pd.DataFrame, day, model: dict) -> None:
     from live_engine import Engine
     from live_sources import ReplaySource
     from signal_store import Store
-    eng = Engine(ReplaySource(), Store(":memory:"), load_model(), lambda: pd.Timestamp.now(tz="UTC"))
+    eng = Engine(ReplaySource(), Store(":memory:"), model, lambda: pd.Timestamp.now(tz="UTC"))
     eng.open_session(pd.Timestamp(day))
     eng.step(eng.last_bar)
     sig = eng.store.signals(eng.session).set_index("ts")
@@ -254,13 +254,14 @@ def main():
         sys.exit(f"The final test has already been run (report/phase6_{done[0]}.csv exists). It runs once.")
 
     model = load_model()
+    model["move"].pop("lgbm", None)   # Phase 6 scored HAR ranges, the model as frozen on 2026-11-14; LightGBM as served is in phase6b
     grid, sip, news, days = load_inputs(dry)
     rows, feat = app_rows(grid, news, days, model)
     rows = add_outcomes(rows, grid, sip)
     title = "DRY RUN on training days: these numbers mean nothing" if dry else "FINAL TEST"
     print(f"\n{title}\nModel {model_id()}, {len(rows):,} signal rows, {len(days)} days, {days[0]} to {days[-1]}")
     if dry:
-        check_against_engine(rows, pd.Timestamp(CFG["replay_default_day"]).date())
+        check_against_engine(rows, pd.Timestamp(CFG["replay_default_day"]).date(), model)
 
     tables = {"ranges": range_table(rows, model), "models": model_table(rows, fit_v4(), feat),
               "activity": activity_table(rows), "direction": direction_table(rows, model), "days": day_table(rows)}

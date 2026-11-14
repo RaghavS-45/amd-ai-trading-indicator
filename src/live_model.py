@@ -32,7 +32,9 @@ def load_model(path=None) -> dict:
 
 
 def move_forecast(model: dict, feat: pd.DataFrame) -> pd.DataFrame:
-    """Forecast 10-minute variance, typical and 80% half widths (log return), activity vs normal."""
+    """Forecast 10-minute variance, typical and 80% half widths (log return), activity vs normal.
+    Ranges come from LightGBM when the frozen model has one (HAR on rows with a missing input);
+    activity and the warning always come from HAR against the time-of-day normal."""
     m = model["move"]
     x = feat[HAR].to_numpy(dtype=float)
     log_f = x @ np.asarray(m["coef"]) + m["intercept"]
@@ -49,7 +51,26 @@ def move_forecast(model: dict, feat: pd.DataFrame) -> pd.DataFrame:
                         "band_hw": z_band * np.sqrt(forecast),
                         "activity": ratio, "level": level,
                         "warning": ratio > m["warning_cut"]}, index=feat.index)
+    out["move_model"] = "har"
+    for c in ("forecast_rv", "typical_hw", "band_hw"):
+        out[f"har_{c}"] = out[c]   # the published baseline, kept beside the main forecast
+    if "lgbm" in m:
+        _use_lgbm(m["lgbm"], feat, out)
     return out[np.isfinite(log_f)]
+
+
+def _use_lgbm(g: dict, feat: pd.DataFrame, out: pd.DataFrame) -> None:
+    """LightGBM (V4) is the main forecast on rows where all its inputs are present; HAR stays elsewhere."""
+    x = feat[g["columns"]]
+    ok = np.isfinite(x.to_numpy(dtype=float)).all(axis=1)
+    if not ok.any():
+        return
+    forecast = np.exp(g["model"].predict(x[ok], num_threads=1)) * g["smear"]
+    part = pd.Series(part_of_day(feat.index[ok]))
+    out.loc[ok, "forecast_rv"] = forecast
+    out.loc[ok, "typical_hw"] = part.map(g["z_typical_parts"]).to_numpy() * np.sqrt(forecast)
+    out.loc[ok, "band_hw"] = part.map(g["z_band_parts"]).to_numpy() * np.sqrt(forecast)
+    out.loc[ok, "move_model"] = "lgbm"
 
 
 def lean_edge(model: dict, feat: pd.DataFrame) -> pd.Series:

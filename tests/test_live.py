@@ -226,3 +226,41 @@ def test_range_multiplier_follows_the_part_of_the_day():
     assert np.allclose(ratio[(hour >= 11) & (hour < 15)], 1.1)
     assert {(hour < 11).any(), (hour >= 15).any()} == {True}
     assert three["forecast_rv"].equals(one["forecast_rv"])
+
+
+class _Const:   # stands in for the frozen LightGBM model
+    def predict(self, x, **kw):
+        return np.full(len(x), np.log(4e-6))
+
+
+def test_lightgbm_is_the_main_range_and_har_the_backup():
+    day = _training_grid()
+    feat = compute_features(day[day.index >= CAL.session_open(DAY)], MOVE_SETS).dropna(subset=HAR)
+    extra = ["qqq_lrv_10", "news_count_30"]
+    feat = feat[np.isfinite(feat[extra]).all(axis=1)].copy()
+    feat.iloc[5, feat.columns.get_loc("qqq_lrv_10")] = np.nan   # one minute with a missing input
+    lgbm = {"model": _Const(), "columns": HAR + extra, "smear": 1.0,
+            "z_band_parts": {p: 1.5 for p in ("first", "mid", "last")},
+            "z_typical_parts": {p: 0.5 for p in ("first", "mid", "last")}}
+    har, both = move_forecast(MODEL, feat), move_forecast({"move": dict(MODEL["move"], lgbm=lgbm)}, feat)
+    backup = both["move_model"] == "har"
+    assert backup.sum() == 1 and backup.iloc[5] and len(both) == len(har)
+    assert np.allclose(both["band_hw"][~backup], 1.5 * 2e-3) and np.allclose(both["typical_hw"][~backup], 0.5 * 2e-3)
+    assert both["band_hw"][backup].equals(har["band_hw"][backup])          # the backup row is HAR's range
+    assert both["har_band_hw"].equals(har["band_hw"])                      # HAR is always kept beside it
+    assert both[["activity", "level", "warning"]].equals(har[["activity", "level", "warning"]])
+
+
+def test_old_record_gets_the_new_columns_and_keeps_its_rows(tmp_path):
+    from signal_store import ADDED, SIGNAL_COLS
+    old_cols = [c for c in SIGNAL_COLS if c not in ADDED]
+    con = sqlite3.connect(str(tmp_path / "old.db"))
+    con.execute(f"CREATE TABLE signals ({', '.join(old_cols)}, PRIMARY KEY (ts))")
+    con.execute(f"INSERT INTO signals (ts, session, late, close) VALUES ('2026-11-06T15:03:00Z', '2026-11-06', 0, 250.0)")
+    con.commit()
+    con.close()
+    store = Store(tmp_path / "old.db")
+    row = store.signals().iloc[0]
+    assert row["close"] == 250.0 and row["move_model"] is None and set(ADDED) <= set(store.signals().columns)
+    eng = _run(FakeSource(), store)
+    assert set(eng.store.signals(eng.session)["move_model"]) == {"har"}   # the test model has no LightGBM

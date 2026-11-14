@@ -29,25 +29,40 @@ for it, and the page says plainly that it was right about 50% of the time in tes
 |---|---|
 | Move size | R² 0.52. The 80% range held 84.0% of the time (± 0.6): a little too wide, on the safe side, in every part of the day and every month |
 | Direction arrows | Right 52.1% of the time (always Up 49.1%, RSI rule 50.4%), but about zero profit after costs under strict scoring (−0.07 bps per trade), so they did not pass |
-| LightGBM comparison | Slightly better than HAR on the test (R² 0.527 vs 0.516). HAR stays, because the model was chosen before the test |
+| LightGBM comparison | Slightly better than HAR on the test (R² 0.527 vs 0.516) |
+
+The ranges in this test came from the HAR model, which was the live model until 14 Nov 2026. After
+the test we moved the ranges to our own LightGBM model (see below and Phase 7f in EXPERIMENTS.md).
 
 Every experiment, including the failed ones, is in [EXPERIMENTS.md](EXPERIMENTS.md).
 
 ## The models
 
-Both are fitted on training data only (up to 2026-06-30) by `src/fit_live.py` and frozen in `models/`.
+All are fitted on training data only (up to 2026-06-30) by `src/fit_live.py` and frozen in `models/`.
 
-**Move size: HAR + time of day** (Corsi, 2009, adapted to 10 minutes). A linear model on five inputs:
+**Move size: LightGBM** (our own model, live since 14 Nov 2026). Gradient-boosted trees on 15 inputs:
 how much AMD moved in the last 10 minutes, the last 30 minutes, today so far, yesterday, and what is
-normal for this time of day. The forecast is turned into ranges with multipliers measured on real data:
+normal for this time of day; the same for QQQ and NVDA over 10 and 30 minutes; the AMD news count of
+the last 30 minutes; the overnight gap; volume and trade-count surprises; and the time of day. The
+forecast is turned into ranges with multipliers measured on real data:
 
 | | First hour | Midday | Last hour |
 |---|---|---|---|
-| 80% range | 1.28 | 1.19 | 1.40 |
-| Typical move (50%) | 0.64 | 0.59 | 0.71 |
+| 80% range | 1.32 | 1.21 | 1.36 |
+| Typical move (50%) | 0.65 | 0.60 | 0.69 |
 
-A LightGBM model beat HAR on 2024 to 2026 but not on 2023 to 2024, so by a rule set in advance the
-simpler HAR model is used.
+**Baseline and backup: HAR + time of day** (Corsi, 2009, adapted to 10 minutes). A linear model on the
+first five inputs above. It is shown beside every forecast and stored with every signal, and it takes
+over automatically on any minute where a LightGBM input is missing. The calm / normal / busy level
+also comes from HAR.
+
+How the choice was made, in order. On 6 Nov HAR was chosen for the launch, because LightGBM beat it on
+2024 to 2026 but not on 2023 to 2024. On 14 Nov the final test showed LightGBM slightly ahead again on
+unseen data (R² 0.527 vs 0.516), and we promoted it: when our own trained model is similar to or
+slightly better than the published baseline, we use ours. This choice was made after seeing the test,
+so the test is not an untouched check of the LightGBM ranges; the live record from 16 Nov is. On the
+test days the LightGBM ranges as served held 84.6% of the time (HAR 84.0%) and were slightly wider, so
+we claim a small gain in forecast accuracy, not better ranges.
 
 **Direction: logistic regression** on 32 price, market (SPY, QQQ, NVDA) and intraday inputs. It gives
 the chance of Up (more than +0.10%), Down (less than −0.10%) and Flat. An arrow is shown when the gap
@@ -64,7 +79,7 @@ that about 1 signal in 5 gets an arrow on a normal day.
 | Same code live and in training | One feature function, `src/features.py::compute_features()`; `src/check_live_parity.py` compares the two |
 | Test set touched once | Loaders refuse dates after `train_end`; `src/phase6_final_test.py --final` refuses to run twice; the app never shows a hold-out day |
 | Reproducible | Dates and seeds in `config.yaml`, pinned `requirements.txt`, dataset checksums, `run_all.py` |
-| Changes after going live are logged | Phases 7c and 7d in EXPERIMENTS.md, chosen on training data only |
+| Changes after going live are logged | Phases 7c and 7d in EXPERIMENTS.md, chosen on training data only; Phase 7f (LightGBM ranges), chosen after the final test and logged as such |
 | No keys in code | Alpaca keys come from environment variables or a git-ignored `.env` |
 
 ## Quick start
@@ -136,7 +151,7 @@ models. The full run takes over an hour (Phase 5e about 40 minutes, Phase 5f abo
 python -m pytest tests/ -v
 ```
 
-114 tests: leakage, labels, walk-forward splits, trade simulation, the live engine (no repainting, late
+116 tests: leakage, labels, walk-forward splits, trade simulation, the live engine (no repainting, late
 bars, restarts) and the scorecard.
 
 ## The website
@@ -184,6 +199,7 @@ restores it at start-up. Each save is a dated commit, which also shows when ever
 │   ├── phase4_*.py … phase5f_*.py   the experiments, one script per phase
 │   ├── phase7c_*.py, phase7d_*.py   checks behind the two post-launch changes
 │   ├── phase6_final_test.py         the final hold-out test (run once)
+│   ├── phase6b_lgbm_live.py         the LightGBM ranges as served, on the same days (report only)
 │   ├── fit_live.py        fits and freezes the live models
 │   ├── live_model.py      turns features into the numbers shown
 │   ├── live_engine.py     the minute loop shared by live, review, replay and tests
@@ -191,7 +207,7 @@ restores it at start-up. Each save is a dated commit, which also shows when ever
 │   ├── live_score.py      the live scorecard
 │   ├── signal_store.py    write-once SQLite store
 │   └── record_sync.py     outside copy of the record
-└── tests/                 114 tests
+└── tests/                 116 tests
 ```
 
 ## Known limits

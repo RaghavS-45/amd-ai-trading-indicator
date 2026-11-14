@@ -178,6 +178,15 @@ function renderKpis(root, sig) {
     <div class="kpi"><span class="lab">Direction</span><span class="val dir ${d.cls}">${d.text}</span><span class="sub">${d.sub}</span></div>`;
 }
 
+function modelRows(sig) {   // which model made the range; signals before 14 Nov 2026 have no entry (HAR)
+  if (!sig.move_model) return '';
+  const har = `±${money(sig.close * sig.har_band_bps / 1e4)}`, main = `±${money(sig.close * sig.band_bps / 1e4)}`;
+  return sig.move_model === 'lgbm'
+    ? `<div class="row"><span>Range model</span><span class="v">LightGBM <span class="muted">80%: ${main}</span></span></div>
+       <div class="row"><span class="muted">HAR baseline</span><span class="v muted">80%: ${har}</span></div>`
+    : `<div class="row"><span>Range model</span><span class="v">HAR <span class="muted">backup: a LightGBM input was missing</span></span></div>`;
+}
+
 function renderPanel(root, s, sig, pinned, onLatest) {
   if (!sig) { root.innerHTML = '<div class="card muted">No signals yet for this session.</div>'; return; }
   const out = s.outcomes.find(o => o.ts === sig.ts);
@@ -200,6 +209,7 @@ function renderPanel(root, s, sig, pinned, onLatest) {
       <div class="row"><span>Typical move</span><span class="v big">±${money(sig.close * sig.typical_bps / 1e4)}</span></div>
       <div class="row"><span>80% range</span><span class="v">${money(sig.band_lo)} – ${money(sig.band_hi)}</span></div>
       <div class="row"><span>Activity</span><span class="v"><span class="level ${sig.level}">${sig.level}</span> <span class="muted">${sig.activity.toFixed(1)}×</span></span></div>
+      ${modelRows(sig)}
       ${sig.warning ? '<div class="warn">Bigger moves than usual are likely</div>' : ''}
       <p class="note">${happened}${sig.late && !s.record.review ? ' <i>Made late (after a restart): not counted in the live score.</i>' : ''}</p>
     </div>
@@ -437,9 +447,10 @@ function renderClaims() {
       <div class="fact"><div class="lab">Error vs “same as last 10 min”</div><div class="val">${q2 && q0 ? `${Math.round(100 * (1 - q2 / q0))}% lower` : '–'}</div></div>
       <div class="fact"><div class="lab">80% range held, live</div><div class="val">${t ? share(t.in_band, t.scored) : '–'}</div></div>
     </div>
-    <p class="note">Model: HAR (Corsi, 2009) with time of day, fitted on ${model.move.rows.toLocaleString()} minutes (${model.move.first_day} → ${model.move.last_day}). Learned weights on how jumpy AMD was:</p>
+    <p class="note">Since 14 Nov 2026 the ranges come from our own <b>LightGBM</b> model (${model.lgbm_inputs} inputs: how jumpy AMD, QQQ and NVDA were, AMD news count, volume and trade surprises, time of day). On July–October 2026 data that neither model had seen it was slightly better than HAR at forecasting move size (R² 0.527 against 0.516), so it was promoted. Its 80% range held 84.6% of the time there (HAR 84.0%): both a little too wide, on the safe side. That period was used to make this choice, so the live record from 16 Nov is LightGBM's own untouched test. HAR is shown beside it as the published baseline and takes over on any minute where a LightGBM input is missing. Activity levels still come from HAR.</p>
+    <p class="note">Baseline: HAR (Corsi, 2009) with time of day, fitted on ${model.move.rows.toLocaleString()} minutes (${model.move.first_day} → ${model.move.last_day}). Learned weights on how jumpy AMD was:</p>
     <div class="weights">${names.map(([n, w]) => `<div class="wrow"><span>${n}</span><span class="wbar" style="width:${Math.max(3, 100 * w / top)}%"></span><span class="n">${w.toFixed(2)}</span></div>`).join('')}</div>
-    <p class="note">Fancier models (ridge, LightGBM with news and peer stocks) did not beat it on unseen years, so by a rule set in advance the simple one is used.</p>`;
+    <p class="note">History: on 6 Nov 2026 HAR was chosen for the launch, because LightGBM beat it on 2024–2026 but not on 2023–2024. The facts above are HAR's walk-forward results; signals before 14 Nov were made by HAR.</p>`;
   const nDir = (runs || []).filter(r => /^E/.test(r.run_id)).length;
   const e56 = run('E5.6'), e0 = run('E5e.0'), e5d = run('E5d.3');
   $('perf-dir').innerHTML = `<h2>Direction · the weak hint</h2>

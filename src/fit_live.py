@@ -18,12 +18,15 @@ import numpy as np
 import pandas as pd
 import sklearn
 import yaml
+import lightgbm
+from lightgbm import LGBMRegressor
 from sklearn.linear_model import LinearRegression
 
 from dataset import build_dataset, feature_columns
 from live_model import HAR, LEAN_SETS, MOVE_SETS, part_of_day
 from long_history import load_sip
 from phase5_models import make_model
+from phase5f_models import LGBM_PARAMS
 from volatility import load_vol_grid, sip_targets
 
 ROOT = Path(__file__).parent.parent
@@ -32,6 +35,28 @@ CFG = yaml.safe_load((ROOT / "config.yaml").read_text())
 
 def log_target(rv):
     return np.log(rv + CFG["rv_floor"])
+
+
+def multipliers(hold: pd.DataFrame, h: np.ndarray) -> dict:
+    """Smearing factor and range multipliers from the inner hold-out: all-day, and per part of the day (Phase 7d)."""
+    smear = float(np.mean(hold["rv_fwd"] / h))
+    scaled = np.abs(hold["ret_fwd"]) / np.sqrt(h * smear)
+    z_typical = float(np.quantile(scaled, CFG["typical_coverage"]))
+    z_band = float(np.quantile(scaled, CFG["band_coverage"]))
+    by_part = pd.Series(scaled.to_numpy(), index=hold.index).groupby(part_of_day(hold.index))
+    z_typical_parts = by_part.quantile(CFG["typical_coverage"]).to_dict()
+    z_band_parts = by_part.quantile(CFG["band_coverage"]).to_dict()
+    z_typical_parts["mid"], z_band_parts["mid"] = z_typical, z_band   # midday keeps the all-day multiplier
+    return {"smear": smear, "z_typical": z_typical, "z_band": z_band, "z_typical_parts": z_typical_parts,
+            "z_band_parts": z_band_parts}
+
+
+def fit_lgbm(data: pd.DataFrame, inner: pd.DataFrame, hold: pd.DataFrame) -> dict:
+    """V4 of Phase 5f, fitted exactly as the comparison model scored in Phase 6."""
+    cols = [c for c in feature_columns(data) if c not in ("rv_fwd", "ret_fwd")]
+    h = np.exp(LGBMRegressor(**LGBM_PARAMS).fit(inner[cols], log_target(inner["rv_fwd"])).predict(hold[cols]))
+    model = LGBMRegressor(**LGBM_PARAMS).fit(data[cols], log_target(data["rv_fwd"]))
+    return dict(multipliers(hold, h), model=model, columns=cols, params={k: v for k, v in LGBM_PARAMS.items()})
 
 
 def fit_move(recent_from) -> dict:
@@ -45,14 +70,7 @@ def fit_move(recent_from) -> dict:
 
     ols = LinearRegression().fit(inner[HAR], log_target(inner["rv_fwd"]))
     h = np.exp(ols.predict(hold[HAR]))
-    smear = float(np.mean(hold["rv_fwd"] / h))
-    scaled = np.abs(hold["ret_fwd"]) / np.sqrt(h * smear)
-    z_typical = float(np.quantile(scaled, CFG["typical_coverage"]))
-    z_band = float(np.quantile(scaled, CFG["band_coverage"]))
-    by_part = pd.Series(scaled.to_numpy(), index=hold.index).groupby(part_of_day(hold.index))   # Phase 7d
-    z_typical_parts = by_part.quantile(CFG["typical_coverage"]).to_dict()
-    z_band_parts = by_part.quantile(CFG["band_coverage"]).to_dict()
-    z_typical_parts["mid"], z_band_parts["mid"] = z_typical, z_band   # midday keeps the all-day multiplier
+    mult = multipliers(hold, h)
 
     ols = LinearRegression().fit(data[HAR], log_target(data["rv_fwd"]))
     recent = data[data["date"] >= recent_from]
@@ -60,8 +78,7 @@ def fit_move(recent_from) -> dict:
     median = float(np.median(raw_ratio))
     ratio = raw_ratio / median
     return {"coef": ols.coef_.tolist(), "intercept": float(ols.intercept_), "columns": HAR,
-            "smear": smear, "z_typical": z_typical, "z_band": z_band, "z_typical_parts": z_typical_parts,
-            "z_band_parts": z_band_parts, "ratio_median": median,
+            **mult, "lgbm": fit_lgbm(data, inner, hold), "ratio_median": median,
             "activity_cuts": [float(np.quantile(ratio, q)) for q in CFG["activity_quantiles"]],
             "warning_cut": float(np.quantile(ratio, CFG["warning_quantile"])),
             "rows": len(data), "first_day": str(days[0]), "last_day": str(days[-1]),
@@ -88,9 +105,10 @@ def main():
     out = ROOT / CFG["live_model_path"]
     out.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(model, out)
-    info = {"train_end": CFG["train_end"], "move": move,
+    info = {"train_end": CFG["train_end"],
+            "move": dict(move, lgbm={k: v for k, v in move["lgbm"].items() if k != "model"}),
             "lean": {k: v for k, v in lean.items() if k != "model"},
-            "versions": {"sklearn": sklearn.__version__, "numpy": np.__version__, "pandas": pd.__version__}}
+            "versions": {"sklearn": sklearn.__version__, "lightgbm": lightgbm.__version__, "numpy": np.__version__, "pandas": pd.__version__}}
     (ROOT / CFG["live_info_path"]).write_text(json.dumps(info, indent=2) + "\n")
     print(json.dumps(info, indent=2))
 

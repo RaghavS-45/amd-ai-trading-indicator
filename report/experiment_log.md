@@ -128,3 +128,9 @@ EXPERIMENTS.md; numbers come from the `report/phase*_summary.csv` files. The hol
 | P6.2 | 2026-11-14 | Final test: move-size model V2 against V4 (LightGBM) | Frozen V2; V4 fitted on training data as in Phase 5f | Test (74 days, touched once) | QLIKE, R² | V2 QLIKE 0.2465, R² 0.516; V4 0.2300, R² 0.527; difference −0.0165 ± 0.0056 | Pre-specified comparison | Move size confirmed; V4 better on test, V2 kept by the pre-set rule | under 1 min |
 | P6.3 | 2026-11-14 | Final test: direction arrows as shown, with always Up and the RSI rule | Frozen E5.6 lean, daily-reset cut (20%) | Test (74 days, touched once) | Strict | Arrows 52.08% (±1.23), −0.07 bps, +$87; always Up 49.07%, −0.78 bps, −$1,099; RSI 50.44%, −0.73 bps, −$503; on IEX closes arrows 52.71%, +0.84 bps | ≥ 51.54% and > 0 bps | ❌ Fail (accuracy passed, profit about zero); beat both baselines | under 1 min |
 | P6.4 | 2026-11-14 | Final test: E5.6 most likely class on every row | Frozen E5.6 logistic | Test (74 days, touched once) | Strict | 51.18% (±0.71), +0.90 bps (3x cost +0.13), +$918; base rate 49.07% | ≥ 50.50% and > 0 bps | Passed narrowly; not claimed as an edge (failed on 2023–2024, under 1 bp) | under 1 min |
+
+## Phase 7f
+
+| Run | Date | What was tried | Model and settings | Split | Scoring | Result | Bar | Outcome | Runtime |
+|---|---|---|---|---|---|---|---|---|---|
+| L6 | 2026-11-14 | Range model: LightGBM (V4) promoted, HAR kept as baseline and backup (change made after seeing the hold-out results) | LightGBM, 15 inputs, Phase 5f settings; multipliers per part of day from 30 inner hold-out days | Train (fit); hold-out second look, report only | Ranges, SIP closes | Hold-out, as served: 80% range held 84.65% (HAR 83.97%), width 92.0 vs 90.7 bps, R² 0.527 vs 0.516; replay equals live engine; 0% on backup | Owner decision: our model when similar or slightly better | Used; model 3e09d2a9042c; hold-out not an untouched test of it | under 1 min |

@@ -1199,4 +1199,85 @@ under strict scoring.
 
 ---
 
+## Phase 7f – LightGBM becomes the range model, HAR the baseline and backup (2026-11-14)
+
+**This change was made after seeing the hold-out results.** It replaces two earlier statements,
+which are left in place above as the record of what was decided at the time:
+- Phase 5f (2026-11-06): "the indicator uses V2", by the rule that a model must beat HAR on both
+  the 2023–2024 and the 2024–2026 folds.
+- Phase 6 (2026-11-14): "Nothing in the app is changed because of these results."
+
+*Decision (project owner, 2026-11-14, after the Phase 6 run):* both move-size models were built
+and trained by us on the same training data. They gave similar results in validation, and on the
+hold-out period LightGBM (V4) was slightly better (QLIKE 0.2300 vs 0.2465, difference
+−0.0165 ± 0.0056; R² 0.527 vs 0.516). The new rule: when our own trained model gives similar or
+slightly better results than the published baseline, the indicator uses our model. HAR stays in
+the app as the baseline shown beside every forecast and as the automatic backup.
+
+*What this means for the evidence:* the hold-out period was used to make this choice, so the
+hold-out numbers for LightGBM are **not** an untouched test of the live model. The untouched test
+of LightGBM as the range model is the live record from 2026-11-16 on. HAR's Phase 6 numbers
+remain an untouched test of HAR.
+
+*What changed (model id 6251e5ccaa53 → 3e09d2a9042c):*
+- `fit_live.py` now also freezes V4: LightGBM with the Phase 5f settings (500 trees, learning rate
+  0.05, 31 leaves, min 500 rows per leaf, seed 42) on the 15 Phase 5f inputs, fitted exactly as in
+  Phase 6 (`fit_v4`): fit on the training rows before the last 30 days, measure the smearing
+  factor (1.356) and the range multipliers on those 30 days, refit on all training rows. No
+  hold-out row is used. The HAR and direction numbers in the model file are unchanged, bit for bit.
+- Range multipliers per part of the day, the Phase 7d rule applied to LightGBM's own 30 inner
+  hold-out days: 80% range 1.316 / 1.209 / 1.364 (first hour / midday / last hour), typical move
+  0.651 / 0.598 / 0.690. Phase 6 scored V4 with one multiplier (1.209); the per-part version was
+  not part of Phase 6.
+- `live_model.move_forecast`: LightGBM gives forecast, typical move and 80% range. On any minute
+  where one of its 15 inputs is not finite, the HAR numbers are used instead (`move_model` =
+  "har"). A signal still needs the five HAR inputs, so the set of signal rows is unchanged.
+- Activity level (calm / normal / busy) and the "bigger moves likely" warning still come from HAR,
+  with the cut points tested in Phase 6.
+- Every stored signal now also has `move_model`, `har_forecast_rv`, `har_typical_bps` and
+  `har_band_bps`. Old records get the columns empty (those signals were made by HAR); no stored
+  row is changed.
+- Hosting: `lightgbm==4.5.0` in `requirements-app.txt`, `libgomp1` in the Dockerfile.
+
+*Checks (training days only):*
+- `python src/phase6b_lgbm_live.py --dry-run` (2026-05-18 → 06-30, 30 days, 10,500 rows; these
+  days are inside the final fit, so the fit numbers flatter both models): the batch numbers equal
+  the live engine's on 2026-06-15 (350 signals: ranges, activity, arrows identical); 0% of rows
+  fell back to HAR; 80% range held 82.8% (HAR 81.4%).
+- Tests: 116 pass (two new: LightGBM is the main range and HAR the backup when an input is
+  missing; an old record gains the new columns and keeps its rows).
+- Hosting image built for linux/amd64; inside it at 0.1 CPU and 512 MB a 350-row LightGBM
+  forecast takes 0.4 s (the live app forecasts one session per minute).
+
+*The live configuration on the hold-out period (report only, `python src/phase6b_lgbm_live.py`,
+`report/phase6b_ranges.csv`).* This is a second look at the hold-out days. Nothing was chosen or
+tuned from it; it is here so the numbers of what is actually served are on record. The script
+first checks that the HAR numbers inside the new model equal the Phase 6 ranges exactly (they do).
+
+| | Rows | LightGBM in 80% range | HAR in 80% range | LightGBM width (bps) | HAR width (bps) | R² LightGBM | R² HAR |
+|---|---|---|---|---|---|---|---|
+| All | 25,900 | 84.65% (±0.60) | 83.97% | 92.0 | 90.7 | 0.527 | 0.516 |
+| First hour | 4,440 | 85.95% | 84.28% | 152.3 | 147.6 | 0.434 | 0.444 |
+| Midday | 17,760 | 84.34% | 84.07% | 78.7 | 78.7 | 0.391 | 0.375 |
+| Last hour | 3,700 | 84.59% | 83.11% | 83.4 | 79.8 | 0.454 | 0.427 |
+| July | 7,700 | 81.56% | 81.97% | 124.7 | 125.4 | 0.463 | 0.420 |
+| August | 7,350 | 87.71% | 86.65% | 87.5 | 85.6 | 0.353 | 0.348 |
+| September | 7,350 | 85.54% | 84.34% | 72.3 | 70.4 | 0.333 | 0.314 |
+| October | 3,500 | 83.14% | 81.94% | 70.8 | 67.9 | 0.334 | 0.370 |
+
+Typical move: 53.8% inside (target 50%). No row fell back to HAR.
+
+*Reading, stated plainly:*
+- LightGBM forecasts move size slightly better (R² 0.527 vs 0.516; QLIKE better by
+  0.0165 ± 0.0056, most of it in the last hour).
+- Its **ranges as served are not better than HAR's** on these days: slightly wider (92.0 vs
+  90.7 bps) and a little further above the 80% target (84.6% vs 84.0%). Both err on the safe side.
+  HAR was better in the first hour and in October.
+- So the claim we make is: our own model matches the published baseline and is slightly ahead on
+  forecast accuracy. We do not claim a tested improvement in the ranges.
+- If the hosted server or the live record shows a problem with LightGBM, the fallback is to serve
+  HAR again (remove the `lgbm` entry in `fit_live.py`); that would be logged here.
+
+---
+
 <!-- Add new experiment entries below as phases progress -->
