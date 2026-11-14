@@ -45,6 +45,7 @@ scripts = [
     ROOT / "src" / "fit_live.py",
     ROOT / "src" / "check_live_parity.py",
     ROOT / "src" / "phase7c_lean_share.py",
+    ROOT / "src" / "phase7d_band_by_time.py",
     ROOT / "src" / "make_log_table.py",
     # Phase 6 will be added here when it is built
 ]

@@ -114,6 +114,12 @@ EXPERIMENTS.md; numbers come from the `report/phase*_summary.csv` files. The hol
 |---|---|---|---|---|---|---|---|---|---|
 | L4 | 2026-11-14 | Arrow shown on 10% vs 20% of signals (daily-reset cut, previous 20 sessions; change made after seeing live results) | E5.6 walk-forward predictions | Train WF | IEX + close entry | 10%: 49.9% ± 0.9, −0.24 bps; 20%: 50.2% ± 0.7, +0.61 bps; base rate 50.35% | 20% not worse than 10% | 20% used; no direction edge at any share | under 1 min |
 
+## Phase 7d
+
+| Run | Date | What was tried | Model and settings | Split | Scoring | Result | Bar | Outcome | Runtime |
+|---|---|---|---|---|---|---|---|---|---|
+| L5 | 2026-11-14 | 80% range: wider multiplier in the first and last hour, midday unchanged (change made after seeing live results) | V2 walk-forward (28 folds) | Train WF | Ranges by hour | Worst hourly gap from 80%: 3.1 → 1.4 points (last 4 folds 4.1 → 2.2); coverage 79.97% → 80.58%; interval score unchanged (109.29) | Smaller worst hourly gap; coverage 79-81% | Used; model 6251e5ccaa53 | under 1 min |
+
 ## Phase 6
 
 | Run | Date | What was tried | Model and settings | Split | Scoring | Result | Bar | Outcome | Runtime |

@@ -1006,4 +1006,66 @@ reaches into the hold-out months (model outputs only, no outcomes, nothing displ
 
 ---
 
+## Phase 7d – One range multiplier per part of the day (2026-11-14)
+
+**This change was made after seeing live results.** It was chosen on training data only.
+
+*Why:* the 80% range is the forecast size times one multiplier (1.19) all day. In the Phase 5f
+walk-forward the range held 78.4% of the time in the 10:00 hour and 76.9% in the 15:00 hour, against
+81% at midday; the six live days looked the same. The size forecast already rises at the open and the
+close, but large surprises are also more common then.
+
+*Tested* (`src/phase7d_band_by_time.py`, V2 walk-forward as in Phase 5f, 28 folds, 292,560 rows, SIP
+targets): A one multiplier (as live); B three multipliers (before 11:00, 11:00-15:00, from 15:00 New
+York) from the same last 30 training days of each fold; C three multipliers from the last 60 days;
+D as B for the first and last hour, with midday keeping the all-day multiplier of A (added after B
+and C had been run, on the user's question whether midday should stay at 1.19).
+*Rule (set before running):* use three multipliers if the worst hourly gap from 80% shrinks on all
+folds and on the last 4 folds while overall coverage stays within 79-81%; use 60 days only if clearly
+better than 30.
+
+| Variant | Folds | Coverage | 10h | 11h | 12h | 13h | 14h | 15h | Worst gap | Typical | Width (bps) | Interval score (bps) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| A one | all | 79.97% | 78.4 | 80.7 | 81.0 | 80.9 | 81.4 | 76.9 | 3.1 | 50.1% | 75.4 | 109.29 |
+| B three, 30 d | all | 79.93% | 79.7 | 79.7 | 80.0 | 79.9 | 80.5 | 79.7 | 0.5 | 50.1% | 75.6 | 109.27 |
+| C three, 60 d | all | 79.94% | 79.8 | 79.7 | 80.1 | 79.9 | 80.5 | 79.8 | 0.5 | 50.0% | 75.6 | 109.17 |
+| D edges only | all | 80.58% | 79.7 | 80.7 | 81.0 | 80.9 | 81.4 | 79.7 | 1.4 | 50.7% | 76.7 | 109.29 |
+| A one | last 4 | 79.10% | 76.3 | 79.1 | 81.8 | 80.5 | 80.5 | 75.9 | 4.1 | 49.2% | 90.2 | 133.73 |
+| B three, 30 d | last 4 | 79.08% | 79.0 | 78.0 | 80.7 | 79.3 | 79.4 | 77.9 | 2.2 | 49.2% | 90.7 | 133.57 |
+| C three, 60 d | last 4 | 79.18% | 79.4 | 78.1 | 80.7 | 79.3 | 79.4 | 78.1 | 1.9 | 49.2% | 90.8 | 133.56 |
+| D edges only | last 4 | 79.84% | 79.0 | 79.1 | 81.8 | 80.5 | 80.5 | 77.9 | 2.2 | 49.8% | 92.2 | 133.54 |
+
+*Reading:* B, C and D all pass the rule. B is the best calibrated over all folds (worst hourly gap
+0.5 points). **D is used**, by the user's choice: it fixes the two weak hours and leaves midday as it
+was. Its cost: over all folds the range holds 80.6% of the time, slightly more than the 80% it claims,
+because midday is a little too wide (81%), and the range is 1.7% wider on average than A. On the last
+4 folds D is the closest to 80% overall (79.8% against 79.1% for A and B) with the same worst gap as
+B (2.2). The interval score is the same for all four (109.2 to 109.3), and the day-to-day spread does
+not change (sd 5.8 points). So the change makes the first and last hour honest; it does not make the
+range more accurate overall.
+
+*Change:* `fit_live.py` also stores `z_band_parts` and `z_typical_parts` from the last 30 training
+days (2026-05-18 to 2026-06-30): 80% range first 1.276, mid 1.194 (unchanged), last 1.395; typical
+move 0.639 / 0.589 (unchanged) / 0.713. `live_model.move_forecast` picks the multiplier by New York
+hour. Every other fitted number is identical after the refit (checked key by key). The model id
+changes from 1477dd2f6cc8 to 6251e5ccaa53; signals already stored keep the old id and are not
+touched. Test: `test_range_multiplier_follows_the_part_of_the_day`; 114 pass.
+
+*Check on the six live days (reviews, after training, IEX closes, for the record only):*
+
+| Day | New (D) | Old |
+|---|---|---|
+| 2026-11-06 | 88.0% | 85.7% |
+| 2026-11-09 | 78.0% | 76.9% |
+| 2026-11-10 | 73.4% | 72.0% |
+| 2026-11-11 | 80.0% | 78.9% |
+| 2026-11-12 | 81.7% | 80.6% |
+| 2026-11-13 | 87.4% | 87.1% |
+
+All 2,100 signals: new 81.4%, old 80.2%. By part of the day, new vs old: first hour 71.9% vs 68.6%,
+midday 83.3% (unchanged), last hour 83.7% vs 79.0%. The first hour is still low on these
+post-earnings days; nothing was tuned on them.
+
+---
+
 <!-- Add new experiment entries below as phases progress -->

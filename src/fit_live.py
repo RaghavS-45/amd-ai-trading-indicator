@@ -2,7 +2,7 @@
 fit_live.py  –  fits and freezes the indicator's models on training data only (up to train_end).
 
 Move size: HAR + time of day (V2 in Phase 5f), fitted as in its last walk-forward fold: the last
-inner_holdout_days set the smearing factor and the band multipliers, then the model is refit on
+inner_holdout_days set the smearing factor and the band multipliers (one per part of the day, Phase 7d), then the model is refit on
 all training days. Activity cut points and the direction-lean cut come from the last year of
 training (activity_from to train_end). Direction lean: E5.6 (logistic, base + context + intraday).
 
@@ -21,7 +21,7 @@ import yaml
 from sklearn.linear_model import LinearRegression
 
 from dataset import build_dataset, feature_columns
-from live_model import HAR, LEAN_SETS, MOVE_SETS
+from live_model import HAR, LEAN_SETS, MOVE_SETS, part_of_day
 from long_history import load_sip
 from phase5_models import make_model
 from volatility import load_vol_grid, sip_targets
@@ -49,6 +49,10 @@ def fit_move(recent_from) -> dict:
     scaled = np.abs(hold["ret_fwd"]) / np.sqrt(h * smear)
     z_typical = float(np.quantile(scaled, CFG["typical_coverage"]))
     z_band = float(np.quantile(scaled, CFG["band_coverage"]))
+    by_part = pd.Series(scaled.to_numpy(), index=hold.index).groupby(part_of_day(hold.index))   # Phase 7d
+    z_typical_parts = by_part.quantile(CFG["typical_coverage"]).to_dict()
+    z_band_parts = by_part.quantile(CFG["band_coverage"]).to_dict()
+    z_typical_parts["mid"], z_band_parts["mid"] = z_typical, z_band   # midday keeps the all-day multiplier
 
     ols = LinearRegression().fit(data[HAR], log_target(data["rv_fwd"]))
     recent = data[data["date"] >= recent_from]
@@ -56,7 +60,8 @@ def fit_move(recent_from) -> dict:
     median = float(np.median(raw_ratio))
     ratio = raw_ratio / median
     return {"coef": ols.coef_.tolist(), "intercept": float(ols.intercept_), "columns": HAR,
-            "smear": smear, "z_typical": z_typical, "z_band": z_band, "ratio_median": median,
+            "smear": smear, "z_typical": z_typical, "z_band": z_band, "z_typical_parts": z_typical_parts,
+            "z_band_parts": z_band_parts, "ratio_median": median,
             "activity_cuts": [float(np.quantile(ratio, q)) for q in CFG["activity_quantiles"]],
             "warning_cut": float(np.quantile(ratio, CFG["warning_quantile"])),
             "rows": len(data), "first_day": str(days[0]), "last_day": str(days[-1]),

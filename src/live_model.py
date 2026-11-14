@@ -18,6 +18,15 @@ LEAN_SETS = ["base", "context", "intraday"]
 LEVELS = ("calm", "normal", "busy")
 
 
+PARTS = ("first", "mid", "last")
+
+
+def part_of_day(index: pd.DatetimeIndex) -> np.ndarray:
+    """first = before 11:00 New York, last = from 15:00, mid = between."""
+    hour = index.tz_convert("America/New_York").hour
+    return np.where(hour < 11, PARTS[0], np.where(hour >= 15, PARTS[2], PARTS[1]))
+
+
 def load_model(path=None) -> dict:
     return joblib.load(path or ROOT / CFG["live_model_path"])
 
@@ -31,9 +40,13 @@ def move_forecast(model: dict, feat: pd.DataFrame) -> pd.DataFrame:
     ratio = np.exp(log_f - feat["lrv_seas"].to_numpy(dtype=float)) / m["ratio_median"]
     lo, hi = m["activity_cuts"]
     level = np.where(ratio < lo, LEVELS[0], np.where(ratio > hi, LEVELS[2], LEVELS[1]))
+    z_typical, z_band = m["z_typical"], m["z_band"]
+    if "z_band_parts" in m:   # one multiplier per part of the day (Phase 7d)
+        part = pd.Series(part_of_day(feat.index))
+        z_typical, z_band = part.map(m["z_typical_parts"]).to_numpy(), part.map(m["z_band_parts"]).to_numpy()
     out = pd.DataFrame({"forecast_rv": forecast,
-                        "typical_hw": m["z_typical"] * np.sqrt(forecast),
-                        "band_hw": m["z_band"] * np.sqrt(forecast),
+                        "typical_hw": z_typical * np.sqrt(forecast),
+                        "band_hw": z_band * np.sqrt(forecast),
                         "activity": ratio, "level": level,
                         "warning": ratio > m["warning_cut"]}, index=feat.index)
     return out[np.isfinite(log_f)]

@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from build_grid import CONTEXT_COLS, build_grid, drop_sparse_days
 from features import CFG, compute_features
 from live_engine import CAL, ONE, SYMBOLS, Engine
-from live_model import HAR, LEAN_SETS, MOVE_SETS, adaptive_cut, direction_lean
+from live_model import HAR, LEAN_SETS, MOVE_SETS, adaptive_cut, direction_lean, move_forecast
 from live_sources import BAR_FIELDS, NEWS_FIELDS, ReplaySource
 from long_history import previous_close
 from sessions import tradable_mask
@@ -212,3 +212,17 @@ def test_direction_cut_comes_from_earlier_sessions_only():
     assert abs(shown.mean() - CFG["lean_share"]) < 0.005
     assert eng.lean_cut != MODEL["lean"]["cut"]
     assert adaptive_cut(MODEL, feat.iloc[:CFG["lean_min_rows"] - 1]) == MODEL["lean"]["cut"]
+
+
+def test_range_multiplier_follows_the_part_of_the_day():
+    day = _training_grid()
+    feat = compute_features(day[day.index >= CAL.session_open(DAY)], MOVE_SETS).dropna(subset=HAR)
+    parts = dict(MODEL["move"], z_band_parts={"first": 1.3, "mid": 1.1, "last": 1.4},
+                 z_typical_parts={"first": 0.65, "mid": 0.55, "last": 0.7})
+    one, three = move_forecast(MODEL, feat), move_forecast({"move": parts}, feat)
+    hour = three.index.tz_convert("America/New_York").hour
+    ratio = three["band_hw"] / one["band_hw"] * MODEL["move"]["z_band"]
+    assert np.allclose(ratio[hour < 11], 1.3) and np.allclose(ratio[hour >= 15], 1.4)
+    assert np.allclose(ratio[(hour >= 11) & (hour < 15)], 1.1)
+    assert {(hour < 11).any(), (hour >= 15).any()} == {True}
+    assert three["forecast_rv"].equals(one["forecast_rv"])
