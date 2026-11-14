@@ -103,6 +103,11 @@ seasonal_rv_min_days: 15
 band_coverage: 0.80            # target share of 10-minute returns inside the band
 vol_ridge_alpha: 1.0
 
+# ── Final test (Phase 6) ───────────────────────────────────────────
+test_sip_path: "data/amd_1min_sip_test.parquet"    # AMD SIP bars, test period: targets and scoring only
+test_news_path: "data/amd_news_test.parquet"       # AMD news, test period: only V4's news count needs it
+phase6_dry_days: 30            # --dry-run scores the last training days instead, to check the code
+
 # ── Model ──────────────────────────────────────────────────────────
 random_seed: 42
 lgbm_n_estimators: 500

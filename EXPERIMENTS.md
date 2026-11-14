@@ -1068,4 +1068,32 @@ post-earnings days; nothing was tuned on them.
 
 ---
 
+## Phase 7e – Price levels on the chart (added 2026-11-11, logged 2026-11-14)
+
+*This change was made after the app went live. It is display only: no model, forecast, stored signal
+or score uses it, so there was nothing to test on data and no result to report.*
+
+*What was added (commit `57bdebb`):* six reference prices on the chart and in a "Price levels" card.
+
+| Level | How it is computed |
+|---|---|
+| VWAP | Running sum of volume × (high + low + close) / 3 divided by running volume, from the first bar of today's session. IEX volume only, so it is not the whole-market VWAP. |
+| Today's high / low so far | Running max / min of today's bars, skipping minutes with no IEX trade (filled bars). |
+| Yesterday's close / high / low | From the previous session in the grid; fixed for the whole day. |
+
+Each level is marked "inside range" when it lies inside that minute's 80% range, otherwise "outside
+range". This is a reading aid on top of the existing range, not a new forecast.
+
+*No look-ahead:* the value at minute t uses only bars up to t (a running sum, max or min), and
+yesterday's levels are complete before today opens. *No repainting:* levels are drawn from the stored
+bars each time the page loads; nothing about them is written to the signal store, and stored signals
+are untouched. *Test period:* a review day whose previous session falls in the hold-out period
+(before 2026-10-16) shows no "yesterday" levels.
+
+*Not done:* the levels are computed in the page (app.js) and have no automated test; they were checked
+by hand against the chart. We did not test whether price reacts to these levels, and the page makes no
+such claim.
+
+---
+
 <!-- Add new experiment entries below as phases progress -->
