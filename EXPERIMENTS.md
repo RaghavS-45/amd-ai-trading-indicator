@@ -952,4 +952,58 @@ trades; always Up 185 of 350 (53%), −$111.10 on 35; RSI rule 34 of 67 (51%), �
 
 ---
 
+## Phase 7c – How often the direction arrow shows (2026-11-14)
+
+**This change was made after seeing live results.** It was chosen on training data only.
+
+*Why:* on the six live days (6 to 13 Nov) the arrow showed on 446 of 1,487 signals (30%), against a
+design of 10%, and was right 207 times (46.4%), paper −$482.50. The cut (0.0553) was fixed on
+2025-07 to 2026-06 data. We first considered restoring 10% and then chose to compare 10% with 20%,
+because 10% leaves few arrows on the page.
+
+*Rule tested:* each day the cut is re-set to the quantile of |p_up − p_down| over the previous 20
+sessions' signals (model outputs only, no outcomes), so the arrow shows on a set share of signals.
+*Pass rule (set before running):* use 20% unless its accuracy or its profit per trade is worse than
+10%'s on the training walk-forward predictions.
+
+*Result* (`src/phase7c_lean_share.py`, E5.6 walk-forward predictions, 2025-07-02 to 2026-06-30,
+IEX closes, entry at the signal bar's close, 1x cost):
+
+| Share shown | Arrows/day | Accuracy (± day SE) | Trades | bps/trade | Folds 6-9 accuracy | Folds 6-9 bps/trade |
+|---|---|---|---|---|---|---|
+| 10% | 37 | 49.9% ± 0.9 | 2,531 | −0.24 | 49.2% | −0.27 |
+| 20% | 73 | 50.2% ± 0.7 | 4,321 | +0.61 | 50.0% | +0.80 |
+| 30% | 107 | 50.5% ± 0.6 | 5,666 | +0.83 | 50.6% | +1.05 |
+
+Base rate (always Up) on the same rows: 50.35%. Per-fold bps at 20%: 0.0, 0.8, 0.3, −1.7, 4.0, 1.3,
+1.2, −2.8, 3.9. The share shown on a single day varies: 5th to 95th percentile 6% to 43% at 20%.
+
+*Reading:* 20% is not worse than 10%, so 20% is used. The differences between 10%, 20% and 30% are
+well inside one standard error: none has a direction edge and none beats always-Up, as in Phases
+5-5e. Close-entry scoring on IEX overstates profit (Phase 5d), so the positive bps are not evidence
+of an edge. 30% is shown for comparison only and was not a candidate.
+
+*Change:* `config.yaml` `lean_share: 0.20`, `lean_sessions: 20`; `live_model.adaptive_cut`;
+`live_engine` sets the cut once per session from earlier sessions. The fitted models are unchanged
+(model 1477dd2f6cc8); signals already stored are not touched. Test:
+`test_direction_cut_comes_from_earlier_sessions_only`; 113 pass.
+
+*Check on recent days (reviews, after training, for the record only):*
+
+| Day | New cut | Arrows, new rule | Arrows, old rule | New rule right |
+|---|---|---|---|---|
+| 2026-11-06 | 0.0427 | 41% | 29% | 62 of 140 |
+| 2026-11-10 | 0.0466 | 43% | 38% | 67 of 148 |
+| 2026-11-12 | 0.0495 | 40% | 33% | 61 of 138 |
+| 2026-11-13 | 0.0510 | 22% | 18% | 37 of 73 |
+
+The new cut is *lower* than the old one, so on the days after earnings (4 Nov) the new rule shows
+more arrows than the old rule, not fewer. The model's leans became much stronger after earnings, and
+a 20-session window catches up slowly. This also corrects the first reading above: in the 20 sessions
+before 6 Nov the old cut showed arrows on under 20% of signals, so the 30% live share came mostly
+from the post-earnings days, not from a steady drift. For the earliest reviews the 20-session window
+reaches into the hold-out months (model outputs only, no outcomes, nothing displayed).
+
+---
+
 <!-- Add new experiment entries below as phases progress -->

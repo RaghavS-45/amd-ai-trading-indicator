@@ -138,6 +138,9 @@ typical_coverage: 0.50         # "typical move": half of 10-minute moves are sma
 activity_quantiles: [0.25, 0.75]   # calm / normal / busy cut points of forecast vs normal for the time of day
 warning_quantile: 0.90         # "bigger moves likely" above this quantile
 lean_quantile: 0.90            # direction lean shown only above this quantile of |p_up - p_down|
+lean_share: 0.20               # direction shown on about this share of signals (set 2026-11-14, EXPERIMENTS.md Phase 7c)
+lean_sessions: 20              # the cut is re-set each day from the previous sessions' |p_up - p_down| (no outcomes)
+lean_min_rows: 1000            # with fewer past rows than this, the frozen cut is used
 activity_from: "2025-07-01"    # last year of training, for the activity and lean cut points
 replay_speed: 2.0              # replay bars per second (replay keeps its signals in memory only)
 replay_default_day: "2026-06-15"

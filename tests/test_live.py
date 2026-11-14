@@ -22,9 +22,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from build_grid import CONTEXT_COLS, build_grid, drop_sparse_days
 from features import CFG, compute_features
 from live_engine import CAL, ONE, SYMBOLS, Engine
-from live_model import HAR, LEAN_SETS, MOVE_SETS
+from live_model import HAR, LEAN_SETS, MOVE_SETS, adaptive_cut, direction_lean
 from live_sources import BAR_FIELDS, NEWS_FIELDS, ReplaySource
 from long_history import previous_close
+from sessions import tradable_mask
 from signal_store import Store
 from volatility import prev_day_rv, seasonal_rv
 
@@ -197,3 +198,17 @@ def test_replay_refuses_test_period():
     src.limit = pd.Timestamp(CFG["train_end"], tz="America/New_York") + pd.Timedelta(days=1)
     with pytest.raises(ValueError, match="hold-out test"):
         src._check(pd.Timestamp(CFG["test_start"], tz="UTC") + pd.Timedelta(hours=15))
+
+
+def test_direction_cut_comes_from_earlier_sessions_only():
+    eng = _run(FakeSource(), Store(":memory:"), at_once=True)
+    old = _training_grid()
+    old = old[old.index < eng.open_utc]
+    feat = compute_features(old, LEAN_SETS)
+    feat = feat[tradable_mask(feat.index) & (feat.index + pd.Timedelta(minutes=CFG["horizon_bars"])).isin(old.index)]
+    days = sorted(set(feat.index.tz_convert("America/New_York").date))[-CFG["lean_sessions"]:]
+    feat = feat[np.isin(feat.index.tz_convert("America/New_York").date, days)]
+    shown = direction_lean(MODEL, feat, eng.lean_cut)["lean"] != "none"
+    assert abs(shown.mean() - CFG["lean_share"]) < 0.005
+    assert eng.lean_cut != MODEL["lean"]["cut"]
+    assert adaptive_cut(MODEL, feat.iloc[:CFG["lean_min_rows"] - 1]) == MODEL["lean"]["cut"]

@@ -108,6 +108,12 @@ EXPERIMENTS.md; numbers come from the `report/phase*_summary.csv` files. The hol
 |---|---|---|---|---|---|---|---|---|---|
 | L3 | 2026-11-08 | Review of 2026-11-06 (all 350 signals) | Frozen model | After training | IEX + ranges | Direction 48 of 101 (48%), −$123.05; always Up 53%, −$111.10; RSI 51%, −$85.35; 80% range 86%, typical 52% | 80% / 50% | Ranges held; no direction edge | under 1 min |
 
+## Phase 7c
+
+| Run | Date | What was tried | Model and settings | Split | Scoring | Result | Bar | Outcome | Runtime |
+|---|---|---|---|---|---|---|---|---|---|
+| L4 | 2026-11-14 | Arrow shown on 10% vs 20% of signals (daily-reset cut, previous 20 sessions; change made after seeing live results) | E5.6 walk-forward predictions | Train WF | IEX + close entry | 10%: 49.9% ± 0.9, −0.24 bps; 20%: 50.2% ± 0.7, +0.61 bps; base rate 50.35% | 20% not worse than 10% | 20% used; no direction edge at any share | under 1 min |
+
 ## Phase 6
 
 | Run | Date | What was tried | Model and settings | Split | Scoring | Result | Bar | Outcome | Runtime |

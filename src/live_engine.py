@@ -21,7 +21,7 @@ import yaml
 
 from build_grid import CONTEXT_COLS, build_grid, drop_sparse_days
 from features import compute_features
-from live_model import LEAN_SETS, MOVE_SETS, direction_lean, move_forecast
+from live_model import LEAN_SETS, MOVE_SETS, adaptive_cut, direction_lean, move_forecast
 from live_score import scorecard
 from long_history import previous_close
 from news import first_bar
@@ -80,6 +80,7 @@ class Engine:
         self.frame = None
         self.feat = None
         self.prev_day = None
+        self.lean_cut = None   # set once per session from earlier sessions only
         self.day = day   # set last: a failed start is retried on the next tick
 
     # ── one step ────────────────────────────────────────────────────
@@ -137,6 +138,11 @@ class Engine:
         named = named.str.lower().str.contains(CFG["news_named_pattern"], regex=True).to_numpy()
         bars = pd.Series([a["bar"] for a in self.news.values()], dtype="datetime64[ns, UTC]")[named]
         grid["news_count"] = bars.value_counts().reindex(grid.index).fillna(0.0).to_numpy()
+        if self.lean_cut is None:
+            old = grid[grid.index < self.open_utc]
+            feat = compute_features(old, LEAN_SETS)
+            ok = tradable_mask(feat.index) & (feat.index + H).isin(old.index)   # rows that were signals
+            self.lean_cut = adaptive_cut(self.model, feat[ok])
         return grid[grid.index >= self.open_utc]
 
     def _emit(self, upto: pd.Timestamp) -> int:
@@ -149,7 +155,7 @@ class Engine:
         rows_idx = [ts for ts in feat.index[ok] if _iso(ts) not in done]
         move = move_forecast(self.model, feat.loc[rows_idx].dropna(subset=["lrv_10", "lrv_30", "lrv_sess",
                                                                             "lrv_prev_day", "lrv_seas"]))
-        lean = direction_lean(self.model, feat.loc[move.index])
+        lean = direction_lean(self.model, feat.loc[move.index], self.lean_cut)
         now = self.clock()
         filled = today["is_filled"].rolling(30, min_periods=1).mean()
         rows = []
@@ -225,6 +231,7 @@ class Engine:
             "scorecard": card,
             "costs": {"shares": CFG["shares_per_trade"],
                       "per_share_each_way": CFG["fee_per_share"] + CFG["slippage_per_share"]},
-            "model": {"id": self.model_id, "train_end": self.model["train_end"],
+            "model": {"id": self.model_id, "train_end": self.model["train_end"], "lean_cut": self.lean_cut,
+                      "lean_share": CFG["lean_share"],
                       "band_coverage": CFG["band_coverage"], "typical_coverage": CFG["typical_coverage"]},
         }

@@ -39,8 +39,26 @@ def move_forecast(model: dict, feat: pd.DataFrame) -> pd.DataFrame:
     return out[np.isfinite(log_f)]
 
 
-def direction_lean(model: dict, feat: pd.DataFrame) -> pd.DataFrame:
+def lean_edge(model: dict, feat: pd.DataFrame) -> pd.Series:
+    """p_up - p_down on rows with complete inputs."""
+    out = direction_lean(model, feat)
+    return out["p_up"] - out["p_down"]
+
+
+def adaptive_cut(model: dict, past_feat: pd.DataFrame) -> float:
+    """Cut that shows a direction on lean_share of the previous lean_sessions sessions' rows.
+    Uses model outputs only, never outcomes. Falls back to the frozen cut with too little history."""
+    days = pd.Series(past_feat.index.tz_convert("America/New_York").date, index=past_feat.index)
+    keep = days.isin(sorted(days.unique())[-CFG["lean_sessions"]:]).to_numpy()
+    edge = lean_edge(model, past_feat[keep]).abs()
+    if len(edge) < CFG["lean_min_rows"]:
+        return float(model["lean"]["cut"])
+    return float(np.quantile(edge, 1 - CFG["lean_share"]))
+
+
+def direction_lean(model: dict, feat: pd.DataFrame, cut: float = None) -> pd.DataFrame:
     d = model["lean"]
+    cut = d["cut"] if cut is None else cut
     x = feat[d["columns"]]
     ok = np.isfinite(x.to_numpy(dtype=float)).all(axis=1)
     classes = list(d["model"].classes_)
@@ -48,5 +66,5 @@ def direction_lean(model: dict, feat: pd.DataFrame) -> pd.DataFrame:
     out = pd.DataFrame({"p_down": p[:, classes.index(-1)], "p_flat": p[:, classes.index(0)],
                         "p_up": p[:, classes.index(1)]}, index=x.index[ok])
     edge = out["p_up"] - out["p_down"]
-    out["lean"] = np.where(edge >= d["cut"], "weak up", np.where(edge <= -d["cut"], "weak down", "none"))
+    out["lean"] = np.where(edge >= cut, "weak up", np.where(edge <= -cut, "weak down", "none"))
     return out
