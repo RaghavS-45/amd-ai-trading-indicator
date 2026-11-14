@@ -47,7 +47,8 @@ scripts = [
     ROOT / "src" / "phase7c_lean_share.py",
     ROOT / "src" / "phase7d_band_by_time.py",
     ROOT / "src" / "make_log_table.py",
-    # Phase 6 will be added here when it is built
+    # Phase 6 is not in this list: the final test was run once (report/phase6_run.json) and refuses to run again.
+    # To reproduce it: python src/download_test.py, delete report/phase6_*.csv, then python src/phase6_final_test.py --final
 ]
 
 

@@ -1096,4 +1096,107 @@ such claim.
 
 ---
 
+## Phase 6 – Final hold-out test (run once, 2026-11-14)
+
+*What was run:* `python src/phase6_final_test.py --final`, once, at commit `85523d4` with the frozen
+model `6251e5ccaa53` (run record: `report/phase6_run.json`, full output: `report/phase6_log.txt`).
+Test period 2026-07-01 → 2026-10-14: 74 days, 25,900 signal rows (350 per day). 2026-10-15 is
+missing from the raw data (see Known issues).
+
+*What was fixed before the run:* the model, the range multipliers, the arrow rule (Phase 7c), the
+scoring (`src/tradable.py`) and this script. The script was first dry-run on the last 30 training
+days, where its signals for 2026-06-15 were identical to the live engine's. Nothing was fitted,
+tuned or chosen on test rows. Two files were downloaded for this run (`src/download_test.py`): AMD
+SIP bars (scoring only) and AMD news (V4's news count only).
+
+### Ranges (the main forecast)
+
+| Scope | Days | Inside 80% range | ± SE (day) | Inside typical (50%) | Width (bps) |
+|---|---|---|---|---|---|
+| All | 74 | **83.97%** | 0.55 | 53.25% | 90.7 |
+| First hour | 74 | 84.28% | 1.30 | 53.67% | 147.6 |
+| Midday | 74 | 84.07% | 0.69 | 52.72% | 78.7 |
+| Last hour | 74 | 83.11% | 1.31 | 55.30% | 79.8 |
+| July | 22 | 81.97% | 0.86 | 50.56% | 125.4 |
+| August | 21 | 86.65% | 0.72 | 56.54% | 85.6 |
+| September | 21 | 84.34% | 0.91 | 54.24% | 70.4 |
+| October (10 days) | 10 | 81.94% | 2.20 | 50.17% | 67.9 |
+
+The range held in every part of the day and every month, but it was **too wide**: 84.0% against a
+target of 80%, about 7 standard errors above. The typical range was also a little wide (53% vs 50%).
+So the indicator erred on the safe side in the test period; a user was told to expect slightly
+bigger moves than happened. Worst single day 70.6% (2026-10-08); best 92.6%. No day was below 70%.
+With the old single multiplier (before Phase 7d) coverage would have been 82.8% overall and 77.9% in
+the last hour, so the Phase 7d change evened out the parts of the day but added to the over-coverage.
+
+### Move-size model: V2 (the indicator) against V4
+
+| Model | QLIKE | vs V2 (± SE) | R² log | Inside 80% | Width (bps) |
+|---|---|---|---|---|---|
+| V2 HAR + time of day (used) | 0.2465 | – | 0.516 | 83.97% | 90.7 |
+| V4 LightGBM (comparison) | 0.2300 | −0.0165 ± 0.0056 | 0.527 | 83.46% | 88.5 |
+
+R² of 0.52 confirms that move size is predictable out of sample (walk-forward gave about 0.5).
+**V4 was better than V2 on the test period** by about 3 standard errors on QLIKE. V2 stays in the
+app: it was chosen by the rule set in Phase 5f (V4 did not beat it on 2023–2024), and switching
+after seeing the test would be choosing on test data. The honest reading is that the simpler model
+cost a small amount of accuracy here (R² 0.516 vs 0.527; ranges about 2% narrower with V4).
+
+### Activity level and warning
+
+| Group | Share of signals | Mean move (bps) | Median move (bps) |
+|---|---|---|---|
+| Calm | 30.6% | 20.5 | 14.8 |
+| Normal | 53.6% | 27.6 | 19.1 |
+| Busy | 15.8% | 30.9 | 22.1 |
+| Warning off | 95.3% | 25.7 | 17.7 |
+| Warning on | 4.7% | 31.9 | 22.9 |
+
+The order is right (busy > normal > calm; warning on > off) but the gaps are modest: busy moves
+were about 1.5 times calm moves. The test period was quieter than the year the cut points come
+from: "busy" appeared on 16% of signals instead of the designed 25%, the warning on 5% instead of 10%.
+
+### Direction
+
+Strict scoring (entry at the next minute's open, exit at the close of t+10, SIP prices,
+non-overlapping trades, costs $0.02/share round trip). Base rate 49.07%; paper $ is for 10 shares.
+
+| Signal | Signals/day | Accuracy | ± SE | Bar | bps/trade 1x | Paper $ | Pass |
+|---|---|---|---|---|---|---|---|
+| Indicator arrows (as shown) | 61 | 52.08% | 1.23 | 51.54% | −0.07 | +87 | No |
+| Arrows, fixed cut (before 7c) | 46 | 51.63% | 1.31 | 51.69% | −1.23 | −500 | No |
+| E5.6 most likely class | 203 | 51.18% | 0.71 | 50.50% | +0.90 | +918 | Yes |
+| Always Up | 347 | 49.07% | 0.65 | 50.36% | −0.78 | −1,099 | No |
+| RSI rule | 89 | 50.44% | 1.34 | 51.74% | −0.73 | −503 | No |
+
+On IEX closes (how the live page scores): arrows 52.71% ± 1.32, +0.84 bps, +$618 (pass); E5.6 most
+likely class 51.47%, +1.51 bps, +$1,437 (pass); always Up 49.23%, −0.65 bps, −$919; RSI rule 50.36%,
+−0.57 bps, −$396. As in Phase 5d, IEX closes flatter the result: the arrows' profit disappears
+under strict scoring.
+
+*Reading:*
+- **The arrows as shown did not pass.** Accuracy cleared the bar (52.1% vs 51.5%), but profit per
+  trade after costs was about zero (−0.07 bps). They did beat both baselines on accuracy and on
+  paper profit (+$87 vs −$1,099 for always Up and −$503 for the RSI rule), by about 2.4 SE over the
+  base rate.
+- **E5.6's most likely class passed the rule**, narrowly: +0.90 bps per trade at 1x cost, +0.13 at
+  3x. We do not claim an edge from this. It is one of five signals scored two ways; the same model
+  failed on the unseen 2023–2024 years (Phase 5e: 50.35% vs 51.04% base); and the margin is under
+  1 bp per trade. The pre-specified signal for this test was the arrows.
+- AMD drifted slightly down over 10-minute windows in the test period (base rate 49.1%), so always
+  Up lost money. Nothing was above the 60% leak alarm.
+- The daily-reset cut (Phase 7c) kept arrows near the designed share: 17.6% of signals (61 a day)
+  against 13% with the frozen fixed cut.
+
+### Conclusion
+
+- Move size: **confirmed**. R² 0.52 on unseen data; the 80% range held 84% of the time (a little
+  too wide, on the safe side) in every part of the day and every month.
+- Direction: **no tradable edge shown**. The arrows were right 52% of the time and beat both
+  baselines, but made nothing after costs under strict scoring.
+- Nothing in the app is changed because of these results. The test set has now been used and must
+  not be used again to choose anything.
+
+---
+
 <!-- Add new experiment entries below as phases progress -->

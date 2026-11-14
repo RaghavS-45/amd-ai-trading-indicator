@@ -23,8 +23,15 @@ University project (IIT Patna). Paper trading and study use only. Not financial 
 So the main output is the move-size forecast. The direction arrow is kept because the project brief asks
 for it, and the page says plainly that it was right about 50% of the time in testing.
 
-The final hold-out test (2026-07-01 to 2026-10-15) has **not been run yet**. It will be run once, on the
-frozen app code. Every experiment, including the failed ones, is in [EXPERIMENTS.md](EXPERIMENTS.md).
+**Final hold-out test** (2026-07-01 to 2026-10-14, 74 days never used before, run once on the frozen app code):
+
+| | Result |
+|---|---|
+| Move size | R² 0.52. The 80% range held 84.0% of the time (± 0.6): a little too wide, on the safe side, in every part of the day and every month |
+| Direction arrows | Right 52.1% of the time (always Up 49.1%, RSI rule 50.4%), but about zero profit after costs under strict scoring (−0.07 bps per trade), so they did not pass |
+| LightGBM comparison | Slightly better than HAR on the test (R² 0.527 vs 0.516). HAR stays, because the model was chosen before the test |
+
+Every experiment, including the failed ones, is in [EXPERIMENTS.md](EXPERIMENTS.md).
 
 ## The models
 
@@ -55,7 +62,7 @@ that about 1 signal in 5 gets an arrow on a normal day.
 | No shuffling | Chronological splits and walk-forward validation only (`src/walkforward.py`) |
 | No repainting | Signals are written once per closed candle to SQLite; triggers refuse UPDATE and DELETE |
 | Same code live and in training | One feature function, `src/features.py::compute_features()`; `src/check_live_parity.py` compares the two |
-| Test set touched once | Loaders refuse dates after `train_end`; the app never shows a hold-out day |
+| Test set touched once | Loaders refuse dates after `train_end`; `src/phase6_final_test.py --final` refuses to run twice; the app never shows a hold-out day |
 | Reproducible | Dates and seeds in `config.yaml`, pinned `requirements.txt`, dataset checksums, `run_all.py` |
 | Changes after going live are logged | Phases 7c and 7d in EXPERIMENTS.md, chosen on training data only |
 | No keys in code | Alpaca keys come from environment variables or a git-ignored `.env` |
@@ -176,6 +183,7 @@ restores it at start-up. Each save is a dated commit, which also shows when ever
 │   ├── volatility.py      move-size targets and features
 │   ├── phase4_*.py … phase5f_*.py   the experiments, one script per phase
 │   ├── phase7c_*.py, phase7d_*.py   checks behind the two post-launch changes
+│   ├── phase6_final_test.py         the final hold-out test (run once)
 │   ├── fit_live.py        fits and freezes the live models
 │   ├── live_model.py      turns features into the numbers shown
 │   ├── live_engine.py     the minute loop shared by live, review, replay and tests
