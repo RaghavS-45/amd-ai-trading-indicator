@@ -18,6 +18,7 @@
     </a>
     <nav class="nav" aria-label="Pages">
       <a href="#live" data-page="live"><svg viewBox="0 0 24 24"><path d="M3 17l5-6 4 3 8-9"/><path d="M3 21h18"/></svg>Live</a>
+      <a href="#zones" data-page="zones"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="4" rx="1"/><rect x="3" y="15" width="18" height="4" rx="1"/><path d="M6 12h12"/></svg>Zones</a>
       <a href="#history" data-page="history"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>History</a>
       <a href="#performance" data-page="performance"><svg viewBox="0 0 24 24"><path d="M5 20V11M12 20V5M19 20v-6"/></svg>Performance</a>
       <a href="#guide" data-page="guide"><svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2z"/><path d="M4 19V5"/></svg>How to read</a>
@@ -71,6 +72,41 @@
     </section>
 
     <!-- ── HISTORY ──────────────────────────────────────── -->
+    <section class="page" id="page-zones" hidden>
+      <div class="pagehead">
+        <div>
+          <h1>What to expect in the next 10 minutes</h1>
+          <p class="muted" id="zn-msg">Alerts appear only when the model is sure. It never says up or down: it says how AMD is likely to move, and how reliable that has been.</p>
+        </div>
+        <div class="pricebox">
+          <span class="price" id="zn-price">–</span>
+          <span class="muted small" id="zn-asof"></span>
+        </div>
+      </div>
+      <div id="zn-alerts"></div>
+      <div class="grid2">
+        <div class="card chartcard">
+          <div class="tools" id="zn-time" style="margin-bottom:8px">
+            <button type="button" class="btn" data-step="-10">◀◀ 10 min</button>
+            <button type="button" class="btn" data-step="-1">◀ 1 min</button>
+            <input type="range" id="zn-slider" min="0" max="0" value="0" style="flex:1;min-width:120px">
+            <button type="button" class="btn" data-step="1">1 min ▶</button>
+            <button type="button" class="btn" data-step="10">10 min ▶▶</button>
+            <button type="button" class="btn" data-step="all">Now</button>
+            <span class="muted small" id="zn-when"></span>
+          </div>
+          <div class="chart" id="zn-chart"></div>
+          <div class="legend">
+            <span><i class="lg dn"></i>resistance (above the price)</span>
+            <span><i class="lg up"></i>support (below the price)</span>
+            <span>● alert: <b>big</b> move or <b>calm</b> · coloured when it came true, grey when not</span>
+          </div>
+          <p class="hint">Use the arrows or slider to replay the day: the page shows only what was known at that minute.</p>
+        </div>
+        <div class="stack" id="zn-panel"></div>
+      </div>
+    </section>
+
     <section class="page" id="page-history" hidden>
       <header class="pagehead">
         <div>
@@ -214,5 +250,6 @@
   </main>
 </div>
 <script src="/static/app.js"></script>
+<script src="/static/zones.js"></script>
 </body>
 </html>

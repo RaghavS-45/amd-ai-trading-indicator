@@ -162,6 +162,7 @@ select, .btn { font: inherit; color: var(--ink); background: var(--surface); bor
 select { min-width: 200px; }
 .btn { cursor: pointer; font-weight: 600; }
 .btn:hover { background: var(--surface-2); }
+.btn.on { background: var(--band); color: #fff; border-color: var(--band); }
 .tools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2); }
 .chips { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -216,3 +217,9 @@ select { min-width: 200px; }
   .wrow { grid-template-columns: 120px minmax(0, 1fr) 36px; }
   select { min-width: 0; }
 }
+.alertrow { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.alertcard { flex: 1 1 280px; display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); font-size: 14px; line-height: 1.45; }
+.alertcard.big { border-color: var(--vwap); }
+.alertcard.big b:first-child { color: var(--vwap); }
+.alertcard.calm b:first-child { color: var(--up); }
+.alertcard.none { opacity: .85; }

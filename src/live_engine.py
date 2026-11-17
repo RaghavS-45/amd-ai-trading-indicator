@@ -28,6 +28,7 @@ from news import first_bar
 from sessions import ET, tradable_mask
 from signal_store import Store
 from volatility import prev_day_rv, seasonal_rv
+from zones import compute_zones
 
 ROOT = Path(__file__).parent.parent
 CFG = yaml.safe_load((ROOT / "config.yaml").read_text())
@@ -80,6 +81,7 @@ class Engine:
         self.frame = None
         self.feat = None
         self.prev_day = None
+        self.zones = None   # support/resistance, set once per session from earlier sessions only
         self.lean_cut = None   # set once per session from earlier sessions only
         self.day = day   # set last: a failed start is retried on the next tick
 
@@ -126,6 +128,8 @@ class Engine:
             self.prev_day = {"date": str(last.index[-1].tz_convert(ET).date()),
                              "close": float(last["close"].iloc[-1]), "high": float(last["high"].max()),
                              "low": float(last["low"].min())}
+        if self.zones is None and len(past):
+            self.zones = compute_zones(past, self.day)
         grid = pd.concat([past, grid[is_today]])
         for sym in SYMBOLS[1:]:
             ctx = build_grid(raw[sym], start, end).reindex(grid.index)[CONTEXT_COLS]
@@ -226,6 +230,7 @@ class Engine:
             "bars": [{"time": _iso(ts), "open": r.open, "high": r.high, "low": r.low, "close": r.close,
                       "volume": float(r.volume), "filled": bool(r.is_filled)} for ts, r in bars.iterrows()],
             "prev_day": self.prev_day,
+            "zones": self.zones or [],
             "signals": sig.replace({np.nan: None}).to_dict("records"),
             "outcomes": out.to_dict("records"),
             "news": news,

@@ -302,6 +302,7 @@ function renderLive(s) {
     $('live-asof').textContent = `${s.session} · bar ${etTime(last.time)} ET`;
   }
   localTimes(s);
+  if (window.renderZonesPage && !$('page-zones').hidden) window.renderZonesPage(s);
 }
 async function pollLive() {
   try { renderLive(await getJSON('/api/state')); }
@@ -501,13 +502,14 @@ async function renderGuideWeights() {
 
 // ── pages, theme, start ────────────────────────────────────────
 let pendingDay = null;
-const PAGES = ['live', 'history', 'performance', 'guide'];
+const PAGES = ['live', 'zones', 'history', 'performance', 'guide'];
 async function route() {
   const page = PAGES.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'live';
   PAGES.forEach(p => { $('page-' + p).hidden = p !== page; });
   document.querySelectorAll('.nav a').forEach(a => a.classList.toggle('on', a.dataset.page === page));
   window.scrollTo(0, 0);
   if (page === 'live' && live) renderLive(live);
+  if (page === 'zones' && live && window.renderZonesPage) window.renderZonesPage(live);
   if (page === 'history' && histChart) histChart.fit();
   if (page === 'history') {
     try { if (!daysLoaded || pendingDay) await loadDays(); } catch (e) { return; }
@@ -523,6 +525,7 @@ function setTheme(t) {
   if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
   if (liveChart) liveChart.theme();
   if (histChart) histChart.theme();
+  if (window.zonesTheme) window.zonesTheme();
 }
 $('theme').onclick = () => {
   const dark = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() === '#0f1114';

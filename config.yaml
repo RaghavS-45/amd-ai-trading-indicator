@@ -149,3 +149,12 @@ lean_min_rows: 1000            # with fewer past rows than this, the frozen cut 
 activity_from: "2025-07-01"    # last year of training, for the activity and lean cut points
 replay_speed: 2.0              # replay bars per second (replay keeps its signals in memory only)
 replay_default_day: "2026-06-15"
+
+# Support and resistance zones on the chart (src/zones.py), built from earlier sessions only
+zone_width_atr: 0.08           # zone thickness, as a share of the average daily range (last 14 sessions)
+zone_month_sessions: 20        # "Month high/low" = the last 20 sessions
+zone_swing_sessions: 10        # swing zones use pivots from the last 10 sessions
+zone_pivot_bars: 4             # a pivot is the highest/lowest 15-minute bar within 4 bars each side
+zone_min_touches: 2            # a swing zone needs at least 2 pivots
+zone_max_atr: 2.5              # show zones within 2.5 average daily ranges of the last close
+zone_max_count: 8              # at most 8 zones, the nearest to the last close
